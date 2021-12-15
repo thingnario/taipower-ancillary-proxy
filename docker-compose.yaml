@@ -1,0 +1,17 @@
+version: "3"
+services:
+  ancillary-proxy:
+    build: ./
+    volumes:
+      - ./config:/config:rw
+    ports:
+      - 102:102
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "3"
+        labels: "ancillary-proxy"
+volumes:
+  config:
