@@ -20,7 +20,8 @@ RUN make
 WORKDIR /
 RUN cp build/pyiec61850/_iec61850.so /_iec61850.so
 RUN cp build/pyiec61850/iec61850.py /iec61850.py
-ADD ./src/proxy_server.py /proxy_server.py
+ADD ./src/*.py /
+ADD ./config/*.json /config/
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT [ "/entrypoint.sh" ]

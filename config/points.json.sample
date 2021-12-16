@@ -1,0 +1,75 @@
+{
+  "name": "testmodel",
+  "logical_devices": [
+    {
+      "name": "SENSORS",
+      "logical_nodes": [
+        {
+          "name": "LLN0",
+          "data_objects": [
+            {
+              "name": "Mod",
+              "cdc": "ENS"
+            },
+            {
+              "name": "Health",
+              "cdc": "ENS"
+            }
+          ],
+          "reports": [
+            {
+              "name": "events01",
+              "report_id": "events01",
+              "buffered": true,
+              "config_rev": 1,
+              "trigger_options": { "data_changed": true },
+              "report_options": { "seq_num": true, "timestamp": true, "reason": true },
+              "buffering_time": 50,
+              "integrity_period": 0
+            },
+            {
+              "name": "events02",
+              "report_id": "events02",
+              "buffered": true,
+              "config_rev": 1,
+              "trigger_options": { "data_changed": true },
+              "report_options": { "seq_num": true, "timestamp": true, "reason": true },
+              "buffering_time": 50,
+              "integrity_period": 0
+            }
+          ]
+        },
+        {
+          "name": "TTMP1",
+          "data_objects": [
+            {
+              "name": "TmpSv",
+              "cdc": "SAV",
+              "data_attributes": [
+                {
+                  "name": "instMag.f"
+                },
+                {
+                  "name": "t"
+                }
+              ]
+            }
+          ],
+          "data_sets": [
+            {
+              "name": "TmpSv",
+              "entries": [
+                {
+                  "variable": "TTMP1$MX$TmpSv$instMag$f"
+                },
+                {
+                  "variable": "TTMP1$MX$TmpSv$t"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
