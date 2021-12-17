@@ -1,7 +1,9 @@
 version: "3"
 services:
-  ancillary-proxy:
-    build: ./
+  ancillary-proxy-server:
+    build: 
+      dockerfile: ./server/Dockerfile
+      context: ./
     volumes:
       - ./config:/config:rw
     ports:
