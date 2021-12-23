@@ -15,5 +15,18 @@ services:
         max-size: "1g"
         max-file: "3"
         labels: "ancillary-proxy"
+  client:
+    build: 
+      dockerfile: ./client/Dockerfile
+      context: ./
+    volumes:
+      - ./config:/config:rw
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1g"
+        max-file: "1"
+        labels: "dummy-client"
 volumes:
   config:

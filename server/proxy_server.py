@@ -32,7 +32,6 @@ class ProxyServer():
     def run(self):
         val = 0.0
 
-        print(self._model)
         temp_ts = iec61850.toDataAttribute(
             self._model['SENSORS']['TTMP1']['TmpSv']['t'])
         temp_value = iec61850.toDataAttribute(
