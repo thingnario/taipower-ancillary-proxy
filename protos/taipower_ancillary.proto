@@ -1,0 +1,23 @@
+syntax = "proto3";
+import "google/protobuf/struct.proto";
+
+//namespace
+package taipower;
+
+//Ancillary Service Input Points
+service AncillaryInputs {
+    rpc UpdatePointValues (PointValues) returns (Reply) {
+
+    }
+}
+
+// Inputs
+message PointValues {
+    //map<string, google.protobuf.Value> values = 1;
+    map<string, float> values = 1;
+}
+
+// Outputs
+message Reply {
+    bool success = 1;
+}

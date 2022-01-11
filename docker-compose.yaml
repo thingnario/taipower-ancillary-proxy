@@ -8,6 +8,7 @@ services:
       - ./config:/config:rw
     ports:
       - 102:102
+      - 61850:61850
     restart: unless-stopped
     logging:
       driver: "json-file"

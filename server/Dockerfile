@@ -8,7 +8,8 @@ RUN apt update && \
         cmake \
         swig \
         python3 \
-        python3-dev
+        python3-dev \
+        python3-pip
 
 ADD ./libiec61850 /libiec61850
 # Replace CMakeLists.txt with our customized one, for supporting Python
@@ -20,8 +21,14 @@ RUN make
 WORKDIR /
 RUN cp build/pyiec61850/_iec61850.so /_iec61850.so
 RUN cp build/pyiec61850/iec61850.py /iec61850.py
+ADD ./protos /protos
 ADD ./server/*.py /
+ADD ./server/requirements.txt /
+ADD ./server/proto.sh /
 ADD ./config/*.json /config/
 COPY ./server/entrypoint.sh /entrypoint.sh
+RUN python3 -m pip install -r requirements.txt
+RUN chmod +x /proto.sh
+RUN /proto.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT [ "/entrypoint.sh" ]

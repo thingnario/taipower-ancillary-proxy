@@ -63,8 +63,8 @@ def load_data_object(ln, config):
             *load_extra_do_args(config, creator['extra_args']))
     }
     for da_config in config.get('data_attributes', []):
-        do[da_config['name']] = iec61850.ModelNode_getChild(
-            iec61850.toModelNode(do['inst']), da_config['name'])
+        do[da_config['name']] = iec61850.toDataAttribute(iec61850.ModelNode_getChild(
+            iec61850.toModelNode(do['inst']), da_config['name']))
     ln[config['name']] = do
 
 

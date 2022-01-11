@@ -1,27 +1,52 @@
+from concurrent import futures
 import signal
 import time
+import grpc
 import iec61850
+import taipower_ancillary_pb2
+import taipower_ancillary_pb2_grpc
 from model_loader import load_model
+
+
+class AncillaryInputsServicer(taipower_ancillary_pb2_grpc.AncillaryInputsServicer):
+
+    def UpdatePointValues(self, request, context):
+        print(request, context)
+        return taipower_ancillary_pb2.Reply(success=True)
 
 
 class ProxyServer():
     def __init__(self):
         self._running = False
-        self._port = 102
+        self._iec_port = 102
+        self._grpc_port = 61850
 
-    def start(self, model):
+    def _init_ied_server(self, model):
         self._model = model
         self._ied_server = iec61850.IedServer_create(model['inst'])
 
         # MMS server will be instructed to start listening to client connections.
-        iec61850.IedServer_start(self._ied_server, self._port)
+        iec61850.IedServer_start(self._ied_server, self._iec_port)
 
         if not iec61850.IedServer_isRunning(self._ied_server):
             print("Starting server failed! Exit.\n")
             iec61850.IedServer_destroy(self._ied_server)
             return False
 
-        self._running = True
+        return True
+
+    def _init_grpc_server(self):
+        self._grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        taipower_ancillary_pb2_grpc.add_AncillaryInputsServicer_to_server(
+            AncillaryInputsServicer(), self._grpc_server)
+        self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
+
+    def start(self, model):
+        self._running = self._init_ied_server(model)
+        if not self._running:
+            return False
+
+        self._init_grpc_server()
 
         def sigint_handler(sig, frame):
             self._running = False
@@ -30,12 +55,13 @@ class ProxyServer():
         return True
 
     def run(self):
+        self._grpc_server.start()
+        self._grpc_server.wait_for_termination()
+
         val = 0.0
 
-        temp_ts = iec61850.toDataAttribute(
-            self._model['SENSORS']['TTMP1']['TmpSv']['t'])
-        temp_value = iec61850.toDataAttribute(
-            self._model['SENSORS']['TTMP1']['TmpSv']['instMag.f'])
+        temp_ts = self._model['SENSORS']['TTMP1']['TmpSv']['t']
+        temp_value = self._model['SENSORS']['TTMP1']['TmpSv']['instMag.f']
         while (self._running):
             iec61850.IedServer_lockDataModel(self._ied_server)
 
