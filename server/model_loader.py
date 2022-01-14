@@ -1,40 +1,49 @@
 import json
 import iec61850
+from functools import reduce
 
 
 DEFAULT_VALUES = {
-    'options': 0,
-    'control_options': 0,
-    'wp_options': 0,
-    'max_pts': 0,
-    'has_old_status': False,
-    'has_transient_indicator': False,
-    'has_cm_tm': False,
-    'has_cm_ct': False,
-    'has_his_rs': False,
-    'has_cha_man_rs': False,
-    'is_integer_not_float': False,
+    'options': [],
+    'controlOptions': [],
+    'wpOptions': [],
+    'maxPts': 0,
+    'hasOldStatus': False,
+    'hasTransientIndicator': False,
+    'hasCmTm': False,
+    'hasCmCt': False,
+    'hasHisRs': False,
+    'hasChaManRs': False,
+    'isIntegerNotFloat': False,
 }
+
 EXTRA_OPTIONS = {
-    'ALM': ['control_options', 'wp_options', 'has_old_status'],
-    'APC': ['control_options', 'is_integer_not_float'],
-    'ASG': ['is_integer_not_float'],
-    'BAC': ['control_options', 'is_integer_not_float'],
-    'BSC': ['control_options', 'has_transient_indicator'],
-    'CMD': ['control_options', 'wp_options', 'has_old_status', 'has_cm_tm', 'has_cm_ct'],
-    'CTE': ['control_options', 'wp_options', 'has_his_rs'],
-    'DPC': ['control_options'],
-    'ENC': ['control_options'],
-    'HST': ['max_pts'],
-    'INC': ['control_options'],
-    'ISC': ['control_options', 'has_transient_indicator'],
-    'MV': ['is_integer_not_float'],
-    'SAV': ['is_integer_not_float'],
-    'SPC': ['control_options'],
-    'SPV': ['control_options', 'wp_options', 'has_cha_man_rs'],
-    'STV': ['control_options', 'wp_options', 'has_old_status'],
-    'TMS': ['control_options', 'wp_options', 'has_his_rs']
+    'ALM': ['controlOptions', 'wpOptions', 'hasOldStatus'],
+    'APC': ['controlOptions', 'isIntegerNotFloat'],
+    'ASG': ['isIntegerNotFloat'],
+    'BAC': ['controlOptions', 'isIntegerNotFloat'],
+    'BSC': ['controlOptions', 'hasTransientIndicator'],
+    'CMD': ['controlOptions', 'wpOptions', 'hasOldStatus', 'hasCmTm', 'hasCmCt'],
+    'CTE': ['controlOptions', 'wpOptions', 'hasHisRs'],
+    'DPC': ['controlOptions'],
+    'ENC': ['controlOptions'],
+    'HST': ['maxPts'],
+    'INC': ['controlOptions'],
+    'ISC': ['controlOptions', 'hasTransientIndicator'],
+    'MV': ['isIntegerNotFloat'],
+    'SAV': ['isIntegerNotFloat'],
+    'SPC': ['controlOptions'],
+    'SPV': ['controlOptions', 'wpOptions', 'hasChaManRs'],
+    'STV': ['controlOptions', 'wpOptions', 'hasOldStatus'],
+    'TMS': ['controlOptions', 'wpOptions', 'hasHisRs']
 }
+
+OPTION_MAP = {
+    'options': {
+        'INST_MAG': iec61850.CDC_OPTION_INST_MAG,
+    }
+}
+
 CDC_CREATORS = dict(map(
     lambda cdc: (cdc, {
         'fn': getattr(iec61850, 'CDC_{}_create'.format(cdc)),
@@ -49,22 +58,38 @@ CDC_CREATORS = dict(map(
      'SPV', 'STV', 'TMS', 'VSG', 'VSS', 'WYE']
 ))
 
+UPDATERS = {
+    'int32': iec61850.IedServer_updateInt32AttributeValue,
+    'int64': iec61850.IedServer_updateInt64AttributeValue,
+    'float': iec61850.IedServer_updateFloatAttributeValue,
+}
+
 
 def load_extra_do_args(config, args):
-    return list(map(lambda arg: config.get(arg['name'], arg['default']), args))
+    def process_arg(arg):
+        name = arg['name']
+        _value = config.get(name, arg['default'])
+        if name in ['options', 'controlOptions']:
+            return reduce(lambda value, option: value | OPTION_MAP[name][option], _value, 0)
+        else:
+            return _value
+    return list(map(lambda arg: process_arg(arg), args))
 
 
 def load_data_object(ln, config):
     creator = CDC_CREATORS[config['cdc']]
+    extra_args = load_extra_do_args(config, creator['extra_args'])
     do = {
         'inst': creator['fn'](
             config['name'],
             iec61850.toModelNode(ln['inst']),
-            *load_extra_do_args(config, creator['extra_args']))
+            *extra_args)
     }
     for da_config in config.get('data_attributes', []):
-        do[da_config['name']] = iec61850.toDataAttribute(iec61850.ModelNode_getChild(
-            iec61850.toModelNode(do['inst']), da_config['name']))
+        child = iec61850.ModelNode_getChild(
+            iec61850.toModelNode(do['inst']), da_config['name'])
+        da_inst = iec61850.toDataAttribute(child)
+        do[da_config['name']] = {'inst': da_inst, 'data_type': da_config['data_type']}
     ln[config['name']] = do
 
 

@@ -1,5 +1,4 @@
 syntax = "proto3";
-import "google/protobuf/struct.proto";
 
 //namespace
 package taipower;
@@ -13,8 +12,7 @@ service AncillaryInputs {
 
 // Inputs
 message PointValues {
-    //map<string, google.protobuf.Value> values = 1;
-    map<string, float> values = 1;
+    string values = 1;
 }
 
 // Outputs

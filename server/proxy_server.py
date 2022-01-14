@@ -1,17 +1,19 @@
 from concurrent import futures
+import json
 import signal
-import time
 import grpc
 import iec61850
 import taipower_ancillary_pb2
 import taipower_ancillary_pb2_grpc
-from model_loader import load_model
+from model_loader import load_model, UPDATERS
 
 
 class AncillaryInputsServicer(taipower_ancillary_pb2_grpc.AncillaryInputsServicer):
+    def __init__(self, servant):
+        self._servant = servant
 
     def UpdatePointValues(self, request, context):
-        print(request, context)
+        self._servant.update_value(json.loads(request.values))
         return taipower_ancillary_pb2.Reply(success=True)
 
 
@@ -38,7 +40,7 @@ class ProxyServer():
     def _init_grpc_server(self):
         self._grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         taipower_ancillary_pb2_grpc.add_AncillaryInputsServicer_to_server(
-            AncillaryInputsServicer(), self._grpc_server)
+            AncillaryInputsServicer(self), self._grpc_server)
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
     def start(self, model):
@@ -57,23 +59,7 @@ class ProxyServer():
     def run(self):
         self._grpc_server.start()
         self._grpc_server.wait_for_termination()
-
-        val = 0.0
-
-        temp_ts = self._model['SENSORS']['TTMP1']['TmpSv']['t']
-        temp_value = self._model['SENSORS']['TTMP1']['TmpSv']['instMag.f']
-        while (self._running):
-            iec61850.IedServer_lockDataModel(self._ied_server)
-
-            iec61850.IedServer_updateUTCTimeAttributeValue(
-                self._ied_server, temp_ts, int(time.time() * 1000))
-            iec61850.IedServer_updateFloatAttributeValue(
-                self._ied_server, temp_value, val)
-
-            iec61850.IedServer_unlockDataModel(self._ied_server)
-            val += 0.1
-
-            time.sleep(0.1)
+        self._running = False
 
     def stop(self):
         # stop MMS server - close TCP server socket and all client sockets
@@ -84,6 +70,17 @@ class ProxyServer():
 
         # destroy dynamic data model
         iec61850.IedModel_destroy(self._model['inst'])
+
+    def update_value(self, values):
+        iec61850.IedServer_lockDataModel(self._ied_server)
+
+        for key, value in values.items():
+            ld, ln, do, da = key.split('.', 3)
+            da_info = self._model[ld][ln][do][da]
+            updater = UPDATERS[da_info['data_type']]
+            updater(self._ied_server, da_info['inst'], value)
+
+        iec61850.IedServer_unlockDataModel(self._ied_server)
 
 
 def main():

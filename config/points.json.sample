@@ -44,13 +44,19 @@
           "data_objects": [
             {
               "name": "TmpSv",
-              "cdc": "SAV",
+              "cdc": "MV",
+              "options": ["INST_MAG"],
+              "isIntegerNotFloat": true,
               "data_attributes": [
                 {
-                  "name": "instMag.f"
+                  "name": "instMag.i",
+                  "fc": "MX",
+                  "data_type": "int32"
                 },
                 {
-                  "name": "t"
+                  "name": "mag.i",
+                  "fc": "MX",
+                  "data_type": "int32"
                 }
               ]
             }
@@ -60,10 +66,10 @@
               "name": "TmpSv",
               "entries": [
                 {
-                  "variable": "TTMP1$MX$TmpSv$instMag$f"
+                  "variable": "TTMP1$MX$TmpSv$instMag$i"
                 },
                 {
-                  "variable": "TTMP1$MX$TmpSv$t"
+                  "variable": "TTMP1$MX$TmpSv$mag$i"
                 }
               ]
             }
