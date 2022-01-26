@@ -63,7 +63,7 @@ class DummyClient():
                 value, error = self.read_point(point, conn)
             for data_set in model['data_sets']:
                 self.read_data_set(data_set, conn)
-            time.sleep(60)
+            time.sleep(10)
 
         error = iec61850.IedConnection_releaseAsync(conn)
         if error != iec61850.IED_ERROR_OK:
