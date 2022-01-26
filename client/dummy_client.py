@@ -18,9 +18,9 @@ class DummyClient():
 
         res = iec61850.IedConnection_readObject(
             conn, point['path'], point['fc'])
-        if res is None:
-            print('Read {} failed'.format(point['path']))
-            return None, None
+        if res is None or isinstance(res, int):
+            print('Read {} failed, error: {}'.format(point['path'], res))
+            return None, res
 
         mms_value, error = res
         value = loader(mms_value)
@@ -31,9 +31,9 @@ class DummyClient():
     def read_data_set(self, data_set_path, conn):
         res = iec61850.IedConnection_readDataSetValues(
             conn, data_set_path, None)
-        if res is None:
-            print('Read data set {} failed'.format(data_set_path))
-            return None, None
+        if res is None or isinstance(res, int):
+            print('Read data set {} failed, error: {}'.format(data_set_path, res))
+            return None, res
 
         data_set, error = res
         values = iec61850.ClientDataSet_getValues(data_set)
