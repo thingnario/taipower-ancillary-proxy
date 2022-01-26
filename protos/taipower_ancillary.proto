@@ -5,17 +5,37 @@ package taipower;
 
 //Ancillary Service Input Points
 service AncillaryInputs {
-    rpc UpdatePointValues (PointValues) returns (Reply) {
+    rpc update_point_values (UpdatePointValuesRequest) returns (Response) {
 
+    }
+
+    rpc add_logical_devices (AddLogicalDevicesRequest) returns (Response) {
+
+    }
+
+    rpc restart_ied_server (RestartIedServerRequest) returns (Response) {
+        
     }
 }
 
 // Inputs
-message PointValues {
+message UpdatePointValuesRequest {
     string values = 1;
 }
 
+message LogicalDevice {
+    string name = 1;
+    string logical_nodes = 2;
+}
+
+message AddLogicalDevicesRequest {
+    repeated LogicalDevice devices = 1;
+}
+
+message RestartIedServerRequest {
+}
+
 // Outputs
-message Reply {
+message Response {
     bool success = 1;
 }

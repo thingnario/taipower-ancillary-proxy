@@ -62,6 +62,7 @@ UPDATERS = {
     'int32': iec61850.IedServer_updateInt32AttributeValue,
     'int64': iec61850.IedServer_updateInt64AttributeValue,
     'float': iec61850.IedServer_updateFloatAttributeValue,
+    'boolean': iec61850.IedServer_updateBooleanAttributeValue,
 }
 
 

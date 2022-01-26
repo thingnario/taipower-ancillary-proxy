@@ -5,16 +5,26 @@ import grpc
 import iec61850
 import taipower_ancillary_pb2
 import taipower_ancillary_pb2_grpc
-from model_loader import load_model, UPDATERS
+from model_loader import (UPDATERS,
+                          load_model,
+                          load_logical_device)
 
 
 class AncillaryInputsServicer(taipower_ancillary_pb2_grpc.AncillaryInputsServicer):
     def __init__(self, servant):
         self._servant = servant
 
-    def UpdatePointValues(self, request, context):
+    def update_point_values(self, request, context):
         self._servant.update_value(json.loads(request.values))
-        return taipower_ancillary_pb2.Reply(success=True)
+        return taipower_ancillary_pb2.Response(success=True)
+
+    def add_logical_devices(self, request, context):
+        self._servant.add_logical_devices(request.devices)
+        return taipower_ancillary_pb2.Response(success=True)
+
+    def restart_ied_server(self, request, context):
+        self._servant.restart_ied_server()
+        return taipower_ancillary_pb2.Response(success=True)
 
 
 class ProxyServer():
@@ -24,7 +34,6 @@ class ProxyServer():
         self._grpc_port = 61850
 
     def _init_ied_server(self, model):
-        self._model = model
         self._ied_server = iec61850.IedServer_create(model['inst'])
 
         # MMS server will be instructed to start listening to client connections.
@@ -37,6 +46,13 @@ class ProxyServer():
 
         return True
 
+    def _destroy_ied_server(self):
+        # stop MMS server - close TCP server socket and all client sockets
+        iec61850.IedServer_stop(self._ied_server)
+
+        # Cleanup - free all resources
+        iec61850.IedServer_destroy(self._ied_server)
+
     def _init_grpc_server(self):
         self._grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         taipower_ancillary_pb2_grpc.add_AncillaryInputsServicer_to_server(
@@ -44,6 +60,7 @@ class ProxyServer():
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
     def start(self, model):
+        self._model = model
         self._running = self._init_ied_server(model)
         if not self._running:
             return False
@@ -62,14 +79,14 @@ class ProxyServer():
         self._running = False
 
     def stop(self):
-        # stop MMS server - close TCP server socket and all client sockets
-        iec61850.IedServer_stop(self._ied_server)
-
-        # Cleanup - free all resources
-        iec61850.IedServer_destroy(self._ied_server)
+        self._destroy_ied_server()
 
         # destroy dynamic data model
         iec61850.IedModel_destroy(self._model['inst'])
+
+    def restart_ied_server(self):
+        self._destroy_ied_server()
+        self._init_ied_server(self._model)
 
     def update_value(self, values):
         iec61850.IedServer_lockDataModel(self._ied_server)
@@ -81,6 +98,18 @@ class ProxyServer():
             updater(self._ied_server, da_info['inst'], value)
 
         iec61850.IedServer_unlockDataModel(self._ied_server)
+
+    def add_logical_devices(self, devices):
+        for device in devices:
+            if device.name in self._model:
+                print('Skip existing logical device {}'.format(device.name))
+                continue
+
+            config = {
+                'name': device.name,
+                'logical_nodes': json.loads(device.logical_nodes),
+            }
+            load_logical_device(self._model, config)
 
 
 def main():
