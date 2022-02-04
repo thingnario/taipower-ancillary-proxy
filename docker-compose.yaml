@@ -16,6 +16,9 @@ services:
         max-size: "1g"
         max-file: "3"
         labels: "ancillary-proxy"
+    networks:
+      - default
+      - grpc
   client:
     build: 
       dockerfile: ./client/Dockerfile
@@ -31,3 +34,6 @@ services:
         labels: "dummy-client"
 volumes:
   config:
+networks:
+  grpc:
+    driver: bridge
