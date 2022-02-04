@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 proxy_server.py
+python3 -u proxy_server.py
