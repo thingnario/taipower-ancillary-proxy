@@ -13,6 +13,10 @@ service AncillaryInputs {
 
     }
 
+    rpc reset_logical_devices (ResetLogicalDevicesRequest) returns (Response) {
+
+    }
+
     rpc restart_ied_server (RestartIedServerRequest) returns (Response) {
         
     }
@@ -29,6 +33,10 @@ message LogicalDevice {
 }
 
 message AddLogicalDevicesRequest {
+    repeated LogicalDevice devices = 1;
+}
+
+message ResetLogicalDevicesRequest {
     repeated LogicalDevice devices = 1;
 }
 

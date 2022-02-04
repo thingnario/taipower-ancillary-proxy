@@ -1,4 +1,5 @@
 from concurrent import futures
+from distutils.command.config import config
 import json
 import signal
 import grpc
@@ -14,12 +15,26 @@ class AncillaryInputsServicer(taipower_ancillary_pb2_grpc.AncillaryInputsService
     def __init__(self, servant):
         self._servant = servant
 
+    @staticmethod
+    def _load_logical_devices(devices):
+        for device in devices:
+            yield {
+                'name': device.name,
+                'logical_nodes': json.loads(device.logical_nodes),
+            }
+
     def update_point_values(self, request, context):
         self._servant.update_value(json.loads(request.values))
         return taipower_ancillary_pb2.Response(success=True)
 
     def add_logical_devices(self, request, context):
-        self._servant.add_logical_devices(request.devices)
+        devices = list(AncillaryInputsServicer._load_logical_devices(request.devices))
+        self._servant.add_logical_devices(devices)
+        return taipower_ancillary_pb2.Response(success=True)
+
+    def reset_logical_devices(self, request, context):
+        devices = list(AncillaryInputsServicer._load_logical_devices(request.devices))
+        self._servant.reset_logical_devices(devices)
         return taipower_ancillary_pb2.Response(success=True)
 
     def restart_ied_server(self, request, context):
@@ -28,13 +43,18 @@ class AncillaryInputsServicer(taipower_ancillary_pb2_grpc.AncillaryInputsService
 
 
 class ProxyServer():
-    def __init__(self):
+    def __init__(self, config_path):
         self._running = False
         self._iec_port = 102
         self._grpc_port = 61850
 
-    def _init_ied_server(self, model):
-        self._ied_server = iec61850.IedServer_create(model['inst'])
+        self._config_path = config_path
+        with open(config_path) as f:
+            self._model_config = json.load(f)
+        self._model = load_model(self._model_config)
+
+    def _init_ied_server(self):
+        self._ied_server = iec61850.IedServer_create(self._model['inst'])
 
         # MMS server will be instructed to start listening to client connections.
         iec61850.IedServer_start(self._ied_server, self._iec_port)
@@ -59,9 +79,8 @@ class ProxyServer():
             AncillaryInputsServicer(self), self._grpc_server)
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
-    def start(self, model):
-        self._model = model
-        self._running = self._init_ied_server(model)
+    def start(self):
+        self._running = self._init_ied_server()
         if not self._running:
             return False
 
@@ -86,7 +105,7 @@ class ProxyServer():
 
     def restart_ied_server(self):
         self._destroy_ied_server()
-        self._init_ied_server(self._model)
+        self._init_ied_server()
 
     def update_value(self, values):
         iec61850.IedServer_lockDataModel(self._ied_server)
@@ -99,30 +118,30 @@ class ProxyServer():
 
         iec61850.IedServer_unlockDataModel(self._ied_server)
 
-    def add_logical_devices(self, devices):
-        for device in devices:
-            if device.name in self._model:
-                print('Skip existing logical device {}'.format(device.name))
-                continue
+    def _save_model_config(self):
+        with open(self._config_path, 'w') as f:
+            json.dump(self._model_config, f)
 
-            config = {
-                'name': device.name,
-                'logical_nodes': json.loads(device.logical_nodes),
-            }
-            load_logical_device(self._model, config)
+    def add_logical_devices(self, _devices):
+        devices = list(filter(lambda d: d['name'] not in self._model, _devices))
+        self._model_config['logical_devices'].extend(devices)
+        for device in devices:
+            load_logical_device(self._model, device)
+        self._save_model_config()
+
+    def reset_logical_devices(self, devices):
+        self._model_config['logical_devices'] = devices
+        model = load_model(self._model_config)
+
+        self._destroy_ied_server()
+        self._model = model
+        self._init_ied_server()
+        self._save_model_config()
 
 
 def main():
-    '''
-       Setup data model
-    '''
-    model = load_model('config/points.json')
-
-    '''
-       run server
-    '''
-    server = ProxyServer()
-    if not server.start(model):
+    server = ProxyServer('config/points.json')
+    if not server.start():
         exit(1)
 
     server.run()

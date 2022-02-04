@@ -116,10 +116,7 @@ def load_logical_device(model, config):
     model[config['name']] = ld
 
 
-def load_model(config_path):
-    with open(config_path) as f:
-        model_config = json.load(f)
-
+def load_model(model_config):
     model = {'inst': iec61850.IedModel_create(model_config['name'])}
     for ld_config in model_config.get('logical_devices', []):
         load_logical_device(model, ld_config)
