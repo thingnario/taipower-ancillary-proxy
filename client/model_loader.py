@@ -11,7 +11,8 @@ MMS_LOADERS = {
 
 FC_MAPPING = {
     'MX': iec61850.IEC61850_FC_MX,
-    'ST': iec61850.IEC61850_FC_ST
+    'ST': iec61850.IEC61850_FC_ST,
+    'CO': iec61850.IEC61850_FC_CO,
 }
 
 
