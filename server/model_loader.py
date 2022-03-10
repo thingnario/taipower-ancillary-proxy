@@ -31,6 +31,9 @@ EXTRA_OPTIONS = {
     'INC': ['controlOptions'],
     'ISC': ['controlOptions', 'hasTransientIndicator'],
     'MV': ['isIntegerNotFloat'],
+    'CMV': ['isIntegerNotFloat'],
+    'WYE': ['isIntegerNotFloat'],
+    'DEL': ['isIntegerNotFloat'],
     'SAV': ['isIntegerNotFloat'],
     'SPC': ['controlOptions'],
     'SPV': ['controlOptions', 'wpOptions', 'hasChaManRs'],
@@ -41,6 +44,9 @@ EXTRA_OPTIONS = {
 OPTION_MAP = {
     'options': {
         'INST_MAG': iec61850.CDC_OPTION_INST_MAG,
+    },
+    'controlOptions': {
+        'MODEL_DIRECT_NORMAL': iec61850.CDC_CTL_MODEL_DIRECT_NORMAL,
     }
 }
 

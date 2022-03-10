@@ -14,12 +14,16 @@ RUN apt update && \
 ADD ./libiec61850 /libiec61850
 # Replace CMakeLists.txt with our customized one, for supporting Python
 ADD ./patch/CMakeLists.txt /libiec61850/CMakeLists.txt
+ADD ./patch/cdc.c /libiec61850/src/iec61850/server/model/cdc.c
+ADD ./patch/iec61850_cdc.h /libiec61850/src/iec61850/inc/iec61850_cdc.h
 RUN mkdir build
 WORKDIR /build
 RUN cmake ../libiec61850/
 RUN make
 WORKDIR /
 ADD ./server/requirements.txt /requirements.txt
+# Do remeber to upgrade pip or grpcio will take forever
+RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install -r requirements.txt
 RUN cp build/pyiec61850/_iec61850.so /_iec61850.so
 RUN cp build/pyiec61850/iec61850.py /iec61850.py
