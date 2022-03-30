@@ -90,14 +90,18 @@ def load_data_object(ln, config):
         'inst': creator['fn'](
             config['name'],
             iec61850.toModelNode(ln['inst']),
-            *extra_args)
+            *extra_args),
+        'data_attributes': {},
     }
     for da_config in config.get('data_attributes', []):
         child = iec61850.ModelNode_getChild(
             iec61850.toModelNode(do['inst']), da_config['name'])
         da_inst = iec61850.toDataAttribute(child)
-        do[da_config['name']] = {'inst': da_inst, 'data_type': da_config['data_type']}
-    ln[config['name']] = do
+        do['data_attributes'][da_config['name']] = {
+            'inst': da_inst,
+            'data_type': da_config['data_type'],
+        }
+    ln['data_objects'][config['name']] = do
 
 
 def load_data_set(ln, config):
@@ -107,23 +111,32 @@ def load_data_set(ln, config):
 
 
 def load_logical_node(ld, config):
-    ln = {'inst': iec61850.LogicalNode_create(config['name'], ld['inst'])}
+    ln = {
+        'inst': iec61850.LogicalNode_create(config['name'], ld['inst']),
+        'data_objects': {},
+    }
     for do_config in config.get('data_objects', []):
         load_data_object(ln, do_config)
     for ds_config in config.get('data_sets', []):
         load_data_set(ln, ds_config)
-    ld[config['name']] = ln
+    ld['logical_nodes'][config['name']] = ln
 
 
 def load_logical_device(model, config):
-    ld = {'inst': iec61850.LogicalDevice_create(config['name'], model['inst'])}
+    ld = {
+        'inst': iec61850.LogicalDevice_create(config['name'], model['inst']),
+        'logical_nodes': {}
+    }
     for ln_config in config.get('logical_nodes', []):
         load_logical_node(ld, ln_config)
-    model[config['name']] = ld
+    model['logical_devices'][config['name']] = ld
 
 
 def load_model(model_config):
-    model = {'inst': iec61850.IedModel_create(model_config['name'])}
+    model = {
+        'inst': iec61850.IedModel_create(model_config['name']),
+        'logical_devices': {},
+    }
     for ld_config in model_config.get('logical_devices', []):
         load_logical_device(model, ld_config)
 
