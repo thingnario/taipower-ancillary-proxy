@@ -58,14 +58,22 @@ class DummyClient():
         print('Connected to {}:{}'.format(self._host, self._port))
 
         model = load_model('/config/points.json')
+        control = iec61850.ControlObjectClient_create("testmodelSENSORS/GGIO01.SPCS01", conn)
+        iec61850.ControlObjectClient_setOrigin(control, None, 3)
+        status = False
+
         while error == iec61850.IED_ERROR_OK:
             for point in model['points']:
                 value, error = self.read_point(point, conn)
             for data_set in model['data_sets']:
                 self.read_data_set(data_set, conn)
+            
+            status = not status
+            ctlVal = iec61850.MmsValue_newBoolean(status)
+            iec61850.ControlObjectClient_operate(control, ctlVal, 0)
             time.sleep(10)
 
-        error = iec61850.IedConnection_releaseAsync(conn)
+        error = iec61850.IedConnection_release(conn)
         if error != iec61850.IED_ERROR_OK:
             print('Release returned error: {}'.format(error))
         else:

@@ -7,12 +7,14 @@ MMS_LOADERS = {
     'int64': iec61850.MmsValue_toInt64,
     'float': iec61850.MmsValue_toFloat,
     'boolean': iec61850.MmsValue_getBoolean,
+    'uint32': iec61850.MmsValue_toUint32,
 }
 
 FC_MAPPING = {
     'MX': iec61850.IEC61850_FC_MX,
     'ST': iec61850.IEC61850_FC_ST,
     'CO': iec61850.IEC61850_FC_CO,
+    'CF': iec61850.IEC61850_FC_CF,
 }
 
 

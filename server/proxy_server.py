@@ -55,6 +55,7 @@ class ProxyServer():
 
     def _init_ied_server(self):
         self._ied_server = iec61850.IedServer_create(self._model['inst'])
+        self._bind_controll_handler()
 
         # MMS server will be instructed to start listening to client connections.
         iec61850.IedServer_start(self._ied_server, self._iec_port)
@@ -78,6 +79,30 @@ class ProxyServer():
         taipower_ancillary_pb2_grpc.add_AncillaryInputsServicer_to_server(
             AncillaryInputsServicer(self), self._grpc_server)
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
+
+    def handle_control_cmd(self, action, parameter, value, test):
+        ctl_num = iec61850.ControlAction_getCtlNum(action)
+        print('handle control command: {}, {}, {}, {}'.format(
+            ctl_num, parameter, iec61850.MmsValue_getBoolean(value), test))
+
+    def _bind_controll_handler(self):
+        def get_data_objects(model_info):
+            for ld_name, ld_info in model_info['logical_devices'].items():
+                for ln_name, ln_info in ld_info['logical_nodes'].items():
+                    for do_name, do_info in ln_info['data_objects'].items():
+                        do_info['path'] = '{}.{}.{}'.format(ld_name, ln_name, do_name)
+                        yield do_info
+
+        for do_info in get_data_objects(self._model):
+            if not do_info['controllable']:
+                continue
+
+            context = iec61850.transformControlHandlerContext((self, self.handle_control_cmd, do_info['path']))
+            if not context:
+                break
+
+            iec61850.IedServer_setControlHandler(
+                self._ied_server, do_info['inst'], iec61850.ControlHandlerProxy, context)
 
     def start(self):
         self._running = self._init_ied_server()
@@ -123,7 +148,7 @@ class ProxyServer():
             json.dump(self._model_config, f)
 
     def add_logical_devices(self, _devices):
-        devices = list(filter(lambda d: d['name'] not in self._model, _devices))
+        devices = list(filter(lambda d: d['name'] not in self._model['logical_devices'], _devices))
         self._model_config['logical_devices'].extend(devices)
         for device in devices:
             load_logical_device(self._model, device)

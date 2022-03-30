@@ -64,11 +64,14 @@ CDC_CREATORS = dict(map(
      'SPV', 'STV', 'TMS', 'VSG', 'VSS', 'WYE']
 ))
 
+CONTROLLABLE_CDC = ['SPC', 'DPC', 'INC', 'ENC', 'BSC', 'ISC', 'APC', 'BAC']
+
 UPDATERS = {
     'int32': iec61850.IedServer_updateInt32AttributeValue,
     'int64': iec61850.IedServer_updateInt64AttributeValue,
     'float': iec61850.IedServer_updateFloatAttributeValue,
     'boolean': iec61850.IedServer_updateBooleanAttributeValue,
+    'uint32': iec61850.IedServer_updateUnsignedAttributeValue,
 }
 
 
@@ -91,6 +94,7 @@ def load_data_object(ln, config):
             config['name'],
             iec61850.toModelNode(ln['inst']),
             *extra_args),
+        'controllable': (config['cdc'] in CONTROLLABLE_CDC),
         'data_attributes': {},
     }
     for da_config in config.get('data_attributes', []):
