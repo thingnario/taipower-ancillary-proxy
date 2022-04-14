@@ -74,6 +74,14 @@ UPDATERS = {
     'uint32': iec61850.IedServer_updateUnsignedAttributeValue,
 }
 
+MMS_LOADERS = {
+    'int32': iec61850.MmsValue_toInt32,
+    'int64': iec61850.MmsValue_toInt64,
+    'float': iec61850.MmsValue_toFloat,
+    'boolean': iec61850.MmsValue_getBoolean,
+    'uint32': iec61850.MmsValue_toUint32,
+}
+
 
 def load_extra_do_args(config, args):
     def process_arg(arg):
@@ -135,6 +143,21 @@ def load_logical_device(model, config):
         load_logical_node(ld, ln_config)
     model['logical_devices'][config['name']] = ld
 
+
+def find_data_attribute(model, da_path):
+    ld, ln, do, da = da_path.split('.', 3)
+    ld_info = model['logical_devices'][ld]
+    ln_info = ld_info['logical_nodes'][ln]
+    do_info = ln_info['data_objects'][do]
+    return do_info['data_attributes'][da]
+
+
+def get_data_objects(model):
+    for ld_name, ld_info in model['logical_devices'].items():
+        for ln_name, ln_info in ld_info['logical_nodes'].items():
+            for do_name, do_info in ln_info['data_objects'].items():
+                do_info['path'] = '{}.{}.{}'.format(ld_name, ln_name, do_name)
+                yield do_info
 
 def load_model(model_config):
     model = {

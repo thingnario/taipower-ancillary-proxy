@@ -1,14 +1,18 @@
-from concurrent import futures
-from distutils.command.config import config
 import json
 import signal
 import grpc
 import iec61850
 import taipower_ancillary_pb2
 import taipower_ancillary_pb2_grpc
+
+from concurrent import futures
+from distutils.command.config import config
 from model_loader import (UPDATERS,
+                          MMS_LOADERS,
                           load_model,
-                          load_logical_device)
+                          load_logical_device,
+                          find_data_attribute,
+                          get_data_objects,)
 from proto_servicer import AncillaryInputsServicer
 
 
@@ -45,24 +49,31 @@ class ProxyServer():
         iec61850.IedServer_destroy(self._ied_server)
 
     def _init_grpc_server(self):
+        self._outward_grpc_channel = grpc.insecure_channel('broker:61852')
+        self._outward_stub = taipower_ancillary_pb2_grpc.AncillaryOutputsStub(self._outward_grpc_channel)
+
         self._grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         taipower_ancillary_pb2_grpc.add_AncillaryInputsServicer_to_server(
             AncillaryInputsServicer(self), self._grpc_server)
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
-    def handle_control_cmd(self, action, parameter, value, test):
-        ctl_num = iec61850.ControlAction_getCtlNum(action)
-        print('handle control command: {}, {}, {}, {}'.format(
-            ctl_num, parameter, iec61850.MmsValue_getBoolean(value), test))
+    def handle_control_cmd(self, action, parameter, mms_value, test):
+        do_path = parameter
+        da_info = find_data_attribute(self._model, do_path + '.Oper.ctlVal') or\
+                  find_data_attribute(self._model, do_path + '.Oper.ctlVal.i')
+        if not da_info:
+            print('No corresponding control point for {}, skip the control command'.format(do_path))
+            return
+
+        loader = MMS_LOADERS[da_info['data_type']]
+        value = loader(mms_value)
+        response = self._outward_stub.update_point_values(
+            taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({do_path: value})))
+        return response
+        
+        
 
     def _bind_controll_handler(self):
-        def get_data_objects(model_info):
-            for ld_name, ld_info in model_info['logical_devices'].items():
-                for ln_name, ln_info in ld_info['logical_nodes'].items():
-                    for do_name, do_info in ln_info['data_objects'].items():
-                        do_info['path'] = '{}.{}.{}'.format(ld_name, ln_name, do_name)
-                        yield do_info
-
         for do_info in get_data_objects(self._model):
             if not do_info['controllable']:
                 continue
@@ -100,14 +111,15 @@ class ProxyServer():
 
     def restart_ied_server(self):
         self._destroy_ied_server()
+        # Must reload model as it will also be destroyed in _destroy_ied_server
+        self._model = load_model(self._model_config)
         self._init_ied_server()
 
     def update_value(self, values):
         iec61850.IedServer_lockDataModel(self._ied_server)
 
-        for key, value in values.items():
-            ld, ln, do, da = key.split('.', 3)
-            da_info = self._model[ld][ln][do][da]
+        for da_path, value in values.items():
+            da_info = find_data_attribute(self._model, da_path)
             updater = UPDATERS[da_info['data_type']]
             updater(self._ied_server, da_info['inst'], value)
 
@@ -115,7 +127,7 @@ class ProxyServer():
 
     def _save_model_config(self):
         with open(self._config_path, 'w') as f:
-            json.dump(self._model_config, f)
+            json.dump(self._model_config, f, indent=2)
 
     def add_logical_devices(self, _devices):
         devices = list(filter(lambda d: d['name'] not in self._model['logical_devices'], _devices))

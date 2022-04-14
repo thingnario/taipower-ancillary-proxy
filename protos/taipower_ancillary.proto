@@ -22,9 +22,15 @@ service AncillaryInputs {
     }
 }
 
+service AncillaryOutputs {
+    rpc update_point_values (UpdatePointValuesRequest) returns (Response) {
+
+    }
+}
+
 // Inputs
 message UpdatePointValuesRequest {
-    string values = 1;
+    string values = 1;  // json
 }
 
 message LogicalDevice {
