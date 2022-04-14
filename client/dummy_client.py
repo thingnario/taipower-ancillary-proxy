@@ -58,9 +58,17 @@ class DummyClient():
         print('Connected to {}:{}'.format(self._host, self._port))
 
         model = load_model('/config/points.json')
-        control = iec61850.ControlObjectClient_create("testmodelSENSORS/GGIO01.SPCS01", conn)
-        iec61850.ControlObjectClient_setOrigin(control, None, 3)
+        control_capacity = iec61850.ControlObjectClient_create(
+            "testmodelASG00001/SPIGAPC01.SPCSO1", conn)
+        iec61850.ControlObjectClient_setOrigin(control_capacity, None, 3)
+        control_start_service = iec61850.ControlObjectClient_create(
+            "testmodelASG00001/SPIGAPC02.SPCSO1", conn)
+        iec61850.ControlObjectClient_setOrigin(control_start_service, None, 3)
+        control_stop_service = iec61850.ControlObjectClient_create(
+            "testmodelASG00001/SPIGAPC03.SPCSO1", conn)
+        iec61850.ControlObjectClient_setOrigin(control_stop_service, None, 3)
         status = False
+        count = 0
 
         while error == iec61850.IED_ERROR_OK:
             for point in model['points']:
@@ -68,9 +76,20 @@ class DummyClient():
             for data_set in model['data_sets']:
                 self.read_data_set(data_set, conn)
             
+            under_capacity = iec61850.MmsValue_newBoolean(status)
+            iec61850.ControlObjectClient_operate(control_capacity, under_capacity, 0)
+
+            if count == 0:
+                iec61850.ControlObjectClient_operate(
+                    control_start_service, iec61850.MmsValue_newBoolean(True), 0)
+
+            if count == 6:
+                iec61850.ControlObjectClient_operate(
+                    control_stop_service, iec61850.MmsValue_newBoolean(True), 0)
+
             status = not status
-            ctlVal = iec61850.MmsValue_newBoolean(status)
-            iec61850.ControlObjectClient_operate(control, ctlVal, 0)
+            count = (count + 1) % 10
+
             time.sleep(10)
 
         error = iec61850.IedConnection_release(conn)
