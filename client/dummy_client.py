@@ -8,6 +8,9 @@ class DummyClient():
     def __init__(self, host, port=102):
         self._host = host
         self._port = port
+        self._control_blocks = None
+        self._is_under_capacity = False
+        self._service_status_count = 0
 
     def read_point(self, point, conn):
         loader = get_mms_loader(point['type'])
@@ -47,6 +50,41 @@ class DummyClient():
         iec61850.ClientDataSet_destroy(data_set)
         return data_set, error
 
+    def create_control_blocks(self, conn):
+        control_blocks = {
+            'capacity': iec61850.ControlObjectClient_create(
+                "testmodelASG00001/SPIGAPC01.SPCSO1", conn),
+            'start_service': iec61850.ControlObjectClient_create(
+                "testmodelASG00001/SPIGAPC02.SPCSO1", conn),
+            'stop_service': iec61850.ControlObjectClient_create(
+                "testmodelASG00001/SPIGAPC03.SPCSO1", conn)
+        }
+        iec61850.ControlObjectClient_setOrigin(control_blocks['capacity'], None, 3)
+        iec61850.ControlObjectClient_setOrigin(control_blocks['start_service'], None, 3)
+        iec61850.ControlObjectClient_setOrigin(control_blocks['stop_service'], None, 3)
+        self._control_blocks = control_blocks
+
+    def perfom_control(self):
+        if self._control_blocks is None:
+            return
+
+        under_capacity = iec61850.MmsValue_newBoolean(self._is_under_capacity)
+        iec61850.ControlObjectClient_operate(self._control_blocks['capacity'], under_capacity, 0)
+        print('Update capacity')
+
+        if self._service_status_count == 0:
+            print('start execution')
+            iec61850.ControlObjectClient_operate(
+                self._control_blocks['start_service'], iec61850.MmsValue_newBoolean(True), 0)
+
+        if self._service_status_count == 6:
+            print('stop execution')
+            iec61850.ControlObjectClient_operate(
+                self._control_blocks['stop_service'], iec61850.MmsValue_newBoolean(True), 0)
+
+        self._is_under_capacity = not self._is_under_capacity
+        self._service_status_count = (self._service_status_count + 1) % 10
+
     def run(self):
         conn = iec61850.IedConnection_create()
         error = iec61850.IedConnection_connect(conn, self._host, self._port)
@@ -58,37 +96,15 @@ class DummyClient():
         print('Connected to {}:{}'.format(self._host, self._port))
 
         model = load_model('/config/points.json')
-        control_capacity = iec61850.ControlObjectClient_create(
-            "testmodelASG00001/SPIGAPC01.SPCSO1", conn)
-        iec61850.ControlObjectClient_setOrigin(control_capacity, None, 3)
-        control_start_service = iec61850.ControlObjectClient_create(
-            "testmodelASG00001/SPIGAPC02.SPCSO1", conn)
-        iec61850.ControlObjectClient_setOrigin(control_start_service, None, 3)
-        control_stop_service = iec61850.ControlObjectClient_create(
-            "testmodelASG00001/SPIGAPC03.SPCSO1", conn)
-        iec61850.ControlObjectClient_setOrigin(control_stop_service, None, 3)
-        status = False
-        count = 0
+        self.create_control_blocks(conn)
 
         while error == iec61850.IED_ERROR_OK:
+            self.perfom_control()
+
             for point in model['points']:
                 value, error = self.read_point(point, conn)
             for data_set in model['data_sets']:
                 self.read_data_set(data_set, conn)
-            
-            under_capacity = iec61850.MmsValue_newBoolean(status)
-            iec61850.ControlObjectClient_operate(control_capacity, under_capacity, 0)
-
-            if count == 0:
-                iec61850.ControlObjectClient_operate(
-                    control_start_service, iec61850.MmsValue_newBoolean(True), 0)
-
-            if count == 6:
-                iec61850.ControlObjectClient_operate(
-                    control_stop_service, iec61850.MmsValue_newBoolean(True), 0)
-
-            status = not status
-            count = (count + 1) % 10
 
             time.sleep(10)
 
