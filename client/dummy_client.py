@@ -19,7 +19,7 @@ class DummyClient():
                 point['type']))
             return
 
-        res = iec61850.IedConnection_readObject(
+        res = iec61850.IedConnection_readObject_no_gil(
             conn, point['path'], point['fc'])
         if res is None or isinstance(res, int):
             print('Read {} failed, error: {}'.format(point['path'], res))
@@ -27,12 +27,11 @@ class DummyClient():
 
         mms_value, error = res
         value = loader(mms_value)
-        print('{}: {}'.format(point['path'], value))
         iec61850.MmsValue_delete(mms_value)
         return value, error
 
     def read_data_set(self, data_set_path, conn):
-        res = iec61850.IedConnection_readDataSetValues(
+        res = iec61850.IedConnection_readDataSetValues_no_gil(
             conn, data_set_path, None)
         if res is None or isinstance(res, int):
             print('Read data set {} failed, error: {}'.format(data_set_path, res))
@@ -69,17 +68,17 @@ class DummyClient():
             return
 
         under_capacity = iec61850.MmsValue_newBoolean(self._is_under_capacity)
-        iec61850.ControlObjectClient_operate(self._control_blocks['capacity'], under_capacity, 0)
+        iec61850.ControlObjectClient_operate_no_gil(self._control_blocks['capacity'], under_capacity, 0)
         print('Update capacity')
 
         if self._service_status_count == 0:
             print('start execution')
-            iec61850.ControlObjectClient_operate(
+            iec61850.ControlObjectClient_operate_no_gil(
                 self._control_blocks['start_service'], iec61850.MmsValue_newBoolean(True), 0)
 
         if self._service_status_count == 6:
             print('stop execution')
-            iec61850.ControlObjectClient_operate(
+            iec61850.ControlObjectClient_operate_no_gil(
                 self._control_blocks['stop_service'], iec61850.MmsValue_newBoolean(True), 0)
 
         self._is_under_capacity = not self._is_under_capacity

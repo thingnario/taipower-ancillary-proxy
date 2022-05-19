@@ -98,5 +98,29 @@ void ReportHandlerProxy (void* parameter, ClientReport report) {
     PyGILState_Release(state);
 }
 
+bool ControlObjectClient_operate_no_gil(ControlObjectClient self, MmsValue* ctlVal, uint64_t operTime) {
+    bool success = false;
+    Py_BEGIN_ALLOW_THREADS
+    success = ControlObjectClient_operate(self, ctlVal, operTime);
+    Py_END_ALLOW_THREADS
+    return success;
+}
+
+MmsValue* IedConnection_readObject_no_gil(IedConnection self, IedClientError* error, const char* dataAttributeReference, FunctionalConstraint fc) {
+    MmsValue* value = NULL;
+    Py_BEGIN_ALLOW_THREADS
+    value = IedConnection_readObject(self, error, dataAttributeReference, fc);
+    Py_END_ALLOW_THREADS
+    return value;
+}
+
+ClientDataSet IedConnection_readDataSetValues_no_gil(IedConnection self, IedClientError* error, const char* dataSetReference, ClientDataSet dataSet) {
+    ClientDataSet value = NULL;
+    Py_BEGIN_ALLOW_THREADS
+    value = IedConnection_readDataSetValues(self, error, dataSetReference, dataSet);
+    Py_END_ALLOW_THREADS
+    return value;
+}
+
 
 #endif
