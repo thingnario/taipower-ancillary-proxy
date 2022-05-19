@@ -32,6 +32,8 @@ services:
         max-size: "1g"
         max-file: "1"
         labels: "dummy-client"
+    cap_add:
+      - SYS_PTRACE
 volumes:
   config:
 networks:

@@ -1,4 +1,5 @@
 FROM ubuntu:18.04
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && \
     apt --yes upgrade && \
     apt --yes install \
@@ -9,7 +10,8 @@ RUN apt update && \
         swig \
         python3 \
         python3-dev \
-        gdb
+        gdb \
+        vim
 
 ADD ./libiec61850 /libiec61850
 # Replace CMakeLists.txt with our customized one, for supporting Python
