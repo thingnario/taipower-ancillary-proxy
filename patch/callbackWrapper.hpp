@@ -48,5 +48,55 @@ ControlHandlerResult ControlHandlerProxy (ControlAction action, void* parameter,
     PyGILState_Release(state);
 }
 
+void* transformReportHandlerContext(PyObject* ctx)
+{
+    static std::map<std::string, PyObject*> s_contexts;
+    // For Python < 3.7, need to init threading in main thread to prevent race condition
+    // (PyGILState_Ensure will do it again in sub thread if threading has not been initialized yet)
+    // This funtion will do nothing if called second times
+    PyEval_InitThreads();
+
+    PyObject* self = NULL;
+    PyObject* cb = NULL;
+    PyObject* dataSetDirectory = NULL;
+    char *rcbReference = NULL;
+
+    if (PyArg_ParseTuple(ctx, "OOOs", &self, &cb, &dataSetDirectory, &rcbReference)) {
+        std::map<std::string, PyObject*>::iterator it = s_contexts.find(rcbReference);
+        if (it != s_contexts.end()) {
+            Py_XDECREF(s_contexts[rcbReference]);
+        }
+        Py_XINCREF(ctx);
+        s_contexts[rcbReference] = ctx;
+
+        return (void *) ctx;
+    }
+
+    return NULL;
+}
+
+void ReportHandlerProxy (void* parameter, ClientReport report) {
+    PyObject* context = (PyObject*)parameter;
+    PyObject* self = NULL;
+    PyObject* cb = NULL;
+    PyObject* dataSetDirectory = NULL;
+    char* rcbReference = NULL;  // RCB: report control block
+    PyGILState_STATE state = PyGILState_Ensure();
+    if (!PyTuple_Check(context) ||
+        !PyArg_ParseTuple(context, "OOOs", &self, &cb, &dataSetDirectory, &rcbReference) ||
+        !PyCallable_Check(cb)) {
+        PyErr_SetString(PyExc_TypeError, "expected a tuple with 3 elements: python callback function, data set directory and the RCB reference path.");
+        PyGILState_Release(state);
+        return;
+    }
+
+    PyObject* args = PyTuple_New(2);
+    PyTuple_SetItem(args, 0, dataSetDirectory);
+    PyTuple_SetItem(args, 1, SWIG_NewPointerObj(SWIG_as_voidptr(report), SWIGTYPE_p_sClientReport, 0));
+
+    PyObject_CallObject(cb, args);
+    PyGILState_Release(state);
+}
+
 
 #endif

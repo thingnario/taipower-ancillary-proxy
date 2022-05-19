@@ -152,7 +152,9 @@ void CommParameters_setDstAddress(CommParameters *gooseCommParameters,
 
 %pythoncallback;
 ControlHandlerResult ControlHandlerProxy (ControlAction action, void* parameter, MmsValue* ctlVal, bool test);
+void ReportHandlerProxy (void* parameter, ClientReport report);
 %nopythoncallback;
 
 %ignore ControlHandlerProxy;
+%ignore ReportHandlerProxy;
 %include "callbackWrapper.hpp"

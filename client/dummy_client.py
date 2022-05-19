@@ -85,6 +85,71 @@ class DummyClient():
         self._is_under_capacity = not self._is_under_capacity
         self._service_status_count = (self._service_status_count + 1) % 10
 
+    def handle_report(self, parameter, report):
+        print('handle report')
+        dataset_directory = parameter
+        dataset_values = iec61850.ClientReport_getDataSetValues(report)
+        print("received report for {} with rptId {}".format(
+            iec61850.ClientReport_getRcbReference(report), iec61850.ClientReport_getRptId(report)))
+
+        if iec61850.ClientReport_hasTimestamp(report):
+            unix_time = iec61850.ClientReport_getTimestamp(report) / 1000
+            print("report contains timestamp {}".format(unix_time))
+
+        if dataset_directory:
+            list_size = iec61850.LinkedList_size(dataset_directory)
+            for i in range(list_size):
+                reason = iec61850.ClientReport_getReasonForInclusion(report, i)
+                if reason != iec61850.IEC61850_REASON_NOT_INCLUDED:
+                    if dataset_values:
+                        value = iec61850.MmsValue_getElement(dataset_values, i)
+                        if value:
+                            value_str = iec61850.MmsValue_printToBuffer(value, 1024)
+
+                    entry = iec61850.LinkedList_get(dataset_directory, i)
+                    entry_name = entry.data
+                    print("  {} (included for reason {}): {}".format(entry_name, reason, value_str))
+
+    def setup_reporting(self, conn, dataset_path, rcb_reference):
+        [dataset_directory, error] = iec61850.IedConnection_getDataSetDirectory(
+            conn, dataset_path, None)
+        if error != iec61850.IED_ERROR_OK:
+            print("Reading data set directory failed!")
+            return error
+
+        [rcb, error] = iec61850.IedConnection_getRCBValues(conn, rcb_reference, None)
+        if error != iec61850.IED_ERROR_OK:
+            print("getRCBValues service error!")
+            return error
+
+        # prepare the parameters of the RCP
+        trigger_options =\
+            iec61850.TRG_OPT_DATA_CHANGED | iec61850.TRG_OPT_QUALITY_CHANGED | iec61850.TRG_OPT_GI
+        iec61850.ClientReportControlBlock_setResv(rcb, True)
+        iec61850.ClientReportControlBlock_setTrgOps(rcb, trigger_options)
+        iec61850.ClientReportControlBlock_setDataSetReference(rcb, dataset_path.replace('.', '$'))
+        iec61850.ClientReportControlBlock_setRptEna(rcb, True)
+        iec61850.ClientReportControlBlock_setGI(rcb, True)
+
+        # Configure the report receiver
+        context = iec61850.transformReportHandlerContext(
+            (self, self.handle_report, dataset_directory, rcb_reference))
+        if not context:
+            return iec61850.IED_ERROR_UNKNOWN
+        report_id = iec61850.ClientReportControlBlock_getRptId(rcb)
+        iec61850.IedConnection_installReportHandler(
+            conn, rcb_reference, report_id, iec61850.ReportHandlerProxy, context)
+
+        # Write RCB parameters and enable report
+        parameters_mask = iec61850.RCB_ELEMENT_RPT_ENA | iec61850.RCB_ELEMENT_GI
+        error = iec61850.IedConnection_setRCBValues(conn, rcb, parameters_mask, True)
+        if error != iec61850.IED_ERROR_OK:
+            print("setRCBValues service error!")
+            return error
+
+        return iec61850.IED_ERROR_OK
+
+
     def run(self):
         conn = iec61850.IedConnection_create()
         error = iec61850.IedConnection_connect(conn, self._host, self._port)
@@ -97,6 +162,9 @@ class DummyClient():
 
         model = load_model('/config/points.json')
         self.create_control_blocks(conn)
+
+        error = self.setup_reporting(
+            conn, "testmodelASR00002/LLN0.AISPI", "testmodelASR00002/LLN0.RP.urcb04")
 
         while error == iec61850.IED_ERROR_OK:
             self.perfom_control()

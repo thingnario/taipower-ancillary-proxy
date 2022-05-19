@@ -82,6 +82,25 @@ MMS_LOADERS = {
     'uint32': iec61850.MmsValue_toUint32,
 }
 
+TRIGGER_OPTIONS = {
+    'data_changed': iec61850.TRG_OPT_DATA_CHANGED,
+    'data_updated': iec61850.TRG_OPT_DATA_UPDATE,
+    'quality_changed': iec61850.TRG_OPT_QUALITY_CHANGED,
+    'integrity': iec61850.TRG_OPT_INTEGRITY,
+    'general_interrogation': iec61850.TRG_OPT_GI,
+}
+
+REPORT_OPTIONS = {
+    'sequence_number': iec61850.RPT_OPT_SEQ_NUM,
+    'time_stamp': iec61850.RPT_OPT_TIME_STAMP,
+    'data_set': iec61850.RPT_OPT_DATA_SET,
+    'reason_code': iec61850.RPT_OPT_REASON_FOR_INCLUSION,
+    'data_reference': iec61850.RPT_OPT_DATA_REFERENCE,
+    'entry_id': iec61850.RPT_OPT_ENTRY_ID,
+    'configuration_revision': iec61850.RPT_OPT_CONF_REV,
+    'buffer_overflow': iec61850.RPT_OPT_BUFFER_OVERFLOW,
+}
+
 
 def load_extra_do_args(config, args):
     def process_arg(arg):
@@ -116,10 +135,32 @@ def load_data_object(ln, config):
     ln['data_objects'][config['name']] = do
 
 
+def load_report(report, ln):
+    def bitwise_or_options(options):
+        return reduce(lambda x, y: x | y, options, 0)
+
+    report_options = [REPORT_OPTIONS[opt] for opt in report.get('report_options', [])]
+    trigger_options = [TRIGGER_OPTIONS[opt] for opt in report.get('trigger_options', [])]
+
+    iec61850.ReportControlBlock_create(
+        report['name'],
+        ln['inst'],
+        report['report_id'],
+        report['buffered'],
+        report['data_set'],
+        report['configuration_revision'],
+        bitwise_or_options(trigger_options),
+        bitwise_or_options(report_options),
+        report['buffer_time'],
+        report['integrity_period'])
+
+
 def load_data_set(ln, config):
     data_set = iec61850.DataSet_create(config['name'], ln['inst'])
     for entry in config.get('entries', []):
         iec61850.DataSetEntry_create(data_set, entry['variable'], -1, None)
+    for report in config.get('reports', []):
+        load_report(report, ln)
 
 
 def load_logical_node(ld, config):
