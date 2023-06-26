@@ -1,0 +1,40 @@
+diff --git a/libiec61850/src/iec61850/inc/iec61850_cdc.h b/libiec61850/src/iec61850/inc/iec61850_cdc.h
+index 04a077bf..9d830645 100644
+--- a/libiec61850/src/iec61850/inc/iec61850_cdc.h
++++ b/libiec61850/src/iec61850/inc/iec61850_cdc.h
+@@ -151,7 +151,7 @@ CAC_ValWithTrans_create(const char* name, ModelNode* parent, FunctionalConstrain
+  * CDC_OPTION_AC_CLC_O
+  */
+ LIB61850_API DataAttribute*
+-CAC_Vector_create(const char* name, ModelNode* parent, uint32_t options, FunctionalConstraint fc, uint8_t triggerOptions);
++CAC_Vector_create(const char* name, ModelNode* parent, uint32_t options, FunctionalConstraint fc, uint8_t triggerOptions, bool isIntegerNotFloat);
+ 
+ LIB61850_API DataAttribute*
+ CAC_Point_create(const char* name, ModelNode* parent, FunctionalConstraint fc, uint8_t triggerOptions, bool hasZVal);
+@@ -230,7 +230,7 @@ CDC_MV_create(const char* dataObjectName, ModelNode* parent, uint32_t options, b
+  * CDC_OPTION_RANGE
+  */
+ LIB61850_API DataObject*
+-CDC_CMV_create(const char* dataObjectName, ModelNode* parent, uint32_t options);
++CDC_CMV_create(const char* dataObjectName, ModelNode* parent, uint32_t options, bool isIntegerNotFloat);
+ 
+ /**
+  * \brief create a new SAV (Sampled analog value) CDC instance (data object)
+@@ -396,7 +396,7 @@ CDC_ASG_create(const char* dataObjectName, ModelNode* parent, uint32_t options,
+  *   CDC_OPTION_ANGLE_REF
+  */
+ LIB61850_API DataObject*
+-CDC_WYE_create(const char* dataObjectName, ModelNode* parent, uint32_t options);
++CDC_WYE_create(const char* dataObjectName, ModelNode* parent, uint32_t options, bool isIntegerNotFloat);
+ 
+ /**
+  * \brief Phase to phase related measured values of a three-phase system (DEL)
+@@ -405,7 +405,7 @@ CDC_WYE_create(const char* dataObjectName, ModelNode* parent, uint32_t options);
+  *   CDC_OPTION_ANGLE_REF
+  */
+ LIB61850_API DataObject*
+-CDC_DEL_create(const char* dataObjectName, ModelNode* parent, uint32_t options);
++CDC_DEL_create(const char* dataObjectName, ModelNode* parent, uint32_t options, bool isIntegerNotFloat);
+ 
+ /***************************
+  * Controls

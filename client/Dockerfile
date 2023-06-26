@@ -15,9 +15,8 @@ RUN apt update && \
 
 ADD ./libiec61850 /libiec61850
 # Replace CMakeLists.txt with our customized one, for supporting Python
-ADD ./patch/CMakeLists.txt /libiec61850/CMakeLists.txt
-ADD ./patch/iec61850.i /libiec61850/pyiec61850/iec61850.i
-ADD ./patch/callbackWrapper.hpp /libiec61850/pyiec61850/callbackWrapper.hpp
+ADD ./patch /patch
+RUN find patch -name "*.patch" -type f -exec patch -p1 -i {} \;
 RUN mkdir build
 WORKDIR /build
 RUN cmake ../libiec61850/

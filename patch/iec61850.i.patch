@@ -1,0 +1,20 @@
+diff --git a/libiec61850/pyiec61850/iec61850.i b/libiec61850/pyiec61850/iec61850.i
+index 26f6655f..567453c8 100644
+--- a/libiec61850/pyiec61850/iec61850.i
++++ b/libiec61850/pyiec61850/iec61850.i
+@@ -145,3 +145,15 @@ void CommParameters_setDstAddress(CommParameters *gooseCommParameters,
+                                   uint8_t dst_mac_4,
+                                   uint8_t dst_mac_5);
+ 
++%{
++#include "callbackWrapper.hpp"
++%}
++
++%pythoncallback;
++ControlHandlerResult ControlHandlerProxy (ControlAction action, void* parameter, MmsValue* ctlVal, bool test);
++void ReportHandlerProxy (void* parameter, ClientReport report);
++%nopythoncallback;
++
++%ignore ControlHandlerProxy;
++%ignore ReportHandlerProxy;
++%include "callbackWrapper.hpp"

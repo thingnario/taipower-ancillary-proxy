@@ -1,0 +1,85 @@
+diff --git a/libiec61850/src/iec61850/server/model/cdc.c b/libiec61850/src/iec61850/server/model/cdc.c
+index e8ac05cf..4d1ebafd 100644
+--- a/libiec61850/src/iec61850/server/model/cdc.c
++++ b/libiec61850/src/iec61850/server/model/cdc.c
+@@ -62,14 +62,14 @@ CAC_ValWithTrans_create(const char* name, ModelNode* parent, FunctionalConstrain
+  * CDC_OPTION_AC_CLC_O
+  */
+ DataAttribute*
+-CAC_Vector_create(const char* name, ModelNode* parent, uint32_t options, FunctionalConstraint fc, uint8_t triggerOptions)
++CAC_Vector_create(const char* name, ModelNode* parent, uint32_t options, FunctionalConstraint fc, uint8_t triggerOptions, bool isIntegerNotFloat)
+ {
+     DataAttribute* vector = DataAttribute_create(name, parent, IEC61850_CONSTRUCTED, fc, triggerOptions, 0, 0);
+ 
+-    CAC_AnalogueValue_create("mag", (ModelNode*) vector, fc, triggerOptions, false);
++    CAC_AnalogueValue_create("mag", (ModelNode*) vector, fc, triggerOptions, isIntegerNotFloat);
+ 
+     if (options & CDC_OPTION_AC_CLC_O)
+-        CAC_AnalogueValue_create("ang", (ModelNode*) vector, fc, triggerOptions, false);
++        CAC_AnalogueValue_create("ang", (ModelNode*) vector, fc, triggerOptions, isIntegerNotFloat);
+ 
+     return vector;
+ }
+@@ -432,14 +432,14 @@ CDC_MV_create(const char* dataObjectName, ModelNode* parent, uint32_t options, b
+  * CDC_OPTION_RANGE
+  */
+ DataObject*
+-CDC_CMV_create(const char* dataObjectName, ModelNode* parent, uint32_t options)
++CDC_CMV_create(const char* dataObjectName, ModelNode* parent, uint32_t options, bool isIntegerNotFloat)
+ {
+     DataObject* newMV = DataObject_create(dataObjectName, parent, 0);
+ 
+     if (options & CDC_OPTION_INST_MAG)
+-        CAC_Vector_create("instCVal", (ModelNode*) newMV, options, IEC61850_FC_MX, 0);
++        CAC_Vector_create("instCVal", (ModelNode*) newMV, options, IEC61850_FC_MX, 0, isIntegerNotFloat);
+ 
+-    CAC_Vector_create("cVal", (ModelNode*) newMV, options, IEC61850_FC_MX, TRG_OPT_DATA_CHANGED | TRG_OPT_DATA_UPDATE);
++    CAC_Vector_create("cVal", (ModelNode*) newMV, options, IEC61850_FC_MX, TRG_OPT_DATA_CHANGED | TRG_OPT_DATA_UPDATE, isIntegerNotFloat);
+ 
+     if (options & CDC_OPTION_RANGE)
+         DataAttribute_create("range", (ModelNode*) newMV, IEC61850_ENUMERATED, IEC61850_FC_MX, TRG_OPT_DATA_CHANGED, 0, 0);
+@@ -1010,18 +1010,18 @@ CDC_ACT_create(const char* dataObjectName, ModelNode* parent, uint32_t options)
+ }
+ 
+ DataObject*
+-CDC_WYE_create(const char* dataObjectName, ModelNode* parent, uint32_t options)
++CDC_WYE_create(const char* dataObjectName, ModelNode* parent, uint32_t options, bool isIntegerNotFloat)
+ {
+     DataObject* newWYE = DataObject_create(dataObjectName, parent, 0);
+ 
+     /* TODO check if some options should be masked */
+     /* TODO take care for GC_1 */
+-    CDC_CMV_create("phsA", (ModelNode*) newWYE, options);
+-    CDC_CMV_create("phsB", (ModelNode*) newWYE, options);
+-    CDC_CMV_create("phsC", (ModelNode*) newWYE, options);
+-    CDC_CMV_create("neut", (ModelNode*) newWYE, options);
+-    CDC_CMV_create("net", (ModelNode*) newWYE, options);
+-    CDC_CMV_create("res", (ModelNode*) newWYE, options);
++    CDC_CMV_create("phsA", (ModelNode*) newWYE, options, isIntegerNotFloat);
++    CDC_CMV_create("phsB", (ModelNode*) newWYE, options, isIntegerNotFloat);
++    CDC_CMV_create("phsC", (ModelNode*) newWYE, options, isIntegerNotFloat);
++    CDC_CMV_create("neut", (ModelNode*) newWYE, options, isIntegerNotFloat);
++    CDC_CMV_create("net", (ModelNode*) newWYE, options, isIntegerNotFloat);
++    CDC_CMV_create("res", (ModelNode*) newWYE, options, isIntegerNotFloat);
+ 
+     if (options & CDC_OPTION_ANGLE_REF)
+         DataAttribute_create("angRef", (ModelNode*) newWYE, IEC61850_ENUMERATED, IEC61850_FC_CF, TRG_OPT_DATA_CHANGED, 0, 0);
+@@ -1033,14 +1033,14 @@ CDC_WYE_create(const char* dataObjectName, ModelNode* parent, uint32_t options)
+ 
+ 
+ DataObject*
+-CDC_DEL_create(const char* dataObjectName, ModelNode* parent, uint32_t options)
++CDC_DEL_create(const char* dataObjectName, ModelNode* parent, uint32_t options, bool isIntegerNotFloat)
+ {
+     DataObject* newDEL = DataObject_create(dataObjectName, parent, 0);
+ 
+     /* TODO check if some options should be masked */
+-    CDC_CMV_create("phsAB", (ModelNode*) newDEL, options);
+-    CDC_CMV_create("phsBC", (ModelNode*) newDEL, options);
+-    CDC_CMV_create("phsCA", (ModelNode*) newDEL, options);
++    CDC_CMV_create("phsAB", (ModelNode*) newDEL, options, isIntegerNotFloat);
++    CDC_CMV_create("phsBC", (ModelNode*) newDEL, options, isIntegerNotFloat);
++    CDC_CMV_create("phsCA", (ModelNode*) newDEL, options, isIntegerNotFloat);
+ 
+     if (options & CDC_OPTION_ANGLE_REF)
+         DataAttribute_create("angRef", (ModelNode*) newDEL, IEC61850_ENUMERATED, IEC61850_FC_CF, TRG_OPT_DATA_CHANGED, 0, 0);
