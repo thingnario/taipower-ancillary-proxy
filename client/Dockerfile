@@ -15,7 +15,8 @@ RUN apt update && \
 
 ADD ./libiec61850 /libiec61850
 # Replace CMakeLists.txt with our customized one, for supporting Python
-COPY ./patch/libiec61850/* /libiec61850
+ADD ./patch /patch
+RUN find patch -name "*.patch" -type f -exec patch -p1 -i {} \;
 RUN mkdir build
 WORKDIR /build
 RUN cmake ../libiec61850/

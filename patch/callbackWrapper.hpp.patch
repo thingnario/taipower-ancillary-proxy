@@ -1,0 +1,132 @@
+diff --git a/libiec61850/pyiec61850/callbackWrapper.hpp b/libiec61850/pyiec61850/callbackWrapper.hpp
+new file mode 100644
+index 00000000..4ec8e13b
+--- /dev/null
++++ b/libiec61850/pyiec61850/callbackWrapper.hpp
+@@ -0,0 +1,126 @@
++#ifndef PYIEC61850_CALLBACK_WRAPPER_HPP
++#define PYIEC61850_CALLBACK_WRAPPER_HPP
++
++#include "iec61850_client.h"
++#include <Python.h>
++
++
++void* transformControlHandlerContext(PyObject* ctx)
++{
++    static std::map<std::string, PyObject*> s_contexts;
++    PyObject* self = NULL;
++    PyObject* cb = NULL;
++    char *dataObjectPath = NULL;
++
++    if (PyArg_ParseTuple(ctx, "OOs", &self, &cb, &dataObjectPath)) {
++        std::map<std::string, PyObject*>::iterator it = s_contexts.find(dataObjectPath);
++        if (it != s_contexts.end()) {
++            Py_XDECREF(s_contexts[dataObjectPath]);
++        }
++        Py_XINCREF(ctx);
++        s_contexts[dataObjectPath] = ctx;
++        return (void *) ctx;
++    }
++
++    return NULL;
++}
++
++ControlHandlerResult ControlHandlerProxy (ControlAction action, void* parameter, MmsValue* ctlVal, bool test) {
++    PyObject* context = (PyObject*)parameter;
++    PyObject* self = NULL;
++    PyObject* cb = NULL;
++    char* dataObject = NULL;
++    if (!PyTuple_Check(context) ||
++        !PyArg_ParseTuple(context, "OOs", &self, &cb, &dataObject) ||
++        !PyCallable_Check(cb)) {
++        PyErr_SetString(PyExc_TypeError, "expected a tuple with 2 elements: python callback function and the data object path.");
++        return CONTROL_RESULT_FAILED;
++    }
++
++    PyObject* args = PyTuple_New(4);
++    PyTuple_SetItem(args, 0, SWIG_NewPointerObj(SWIG_as_voidptr(action), SWIGTYPE_p_ControlActionType, 0));
++    PyTuple_SetItem(args, 1, PyString_FromString(dataObject));
++    PyTuple_SetItem(args, 2, SWIG_NewPointerObj(SWIG_as_voidptr(ctlVal), SWIGTYPE_p_sMmsValue, 0));
++    PyTuple_SetItem(args, 3, PyBool_FromLong(test));
++
++    PyGILState_STATE state = PyGILState_Ensure();
++    PyObject_CallObject(cb, args);
++    PyGILState_Release(state);
++}
++
++void* transformReportHandlerContext(PyObject* ctx)
++{
++    static std::map<std::string, PyObject*> s_contexts;
++    // For Python < 3.7, need to init threading in main thread to prevent race condition
++    // (PyGILState_Ensure will do it again in sub thread if threading has not been initialized yet)
++    // This funtion will do nothing if called second times
++    PyEval_InitThreads();
++
++    PyObject* self = NULL;
++    PyObject* cb = NULL;
++    PyObject* dataSetDirectory = NULL;
++    char *rcbReference = NULL;
++
++    if (PyArg_ParseTuple(ctx, "OOOs", &self, &cb, &dataSetDirectory, &rcbReference)) {
++        std::map<std::string, PyObject*>::iterator it = s_contexts.find(rcbReference);
++        if (it != s_contexts.end()) {
++            Py_XDECREF(s_contexts[rcbReference]);
++        }
++        Py_XINCREF(ctx);
++        s_contexts[rcbReference] = ctx;
++
++        return (void *) ctx;
++    }
++
++    return NULL;
++}
++
++void ReportHandlerProxy (void* parameter, ClientReport report) {
++    PyObject* context = (PyObject*)parameter;
++    PyObject* self = NULL;
++    PyObject* cb = NULL;
++    PyObject* dataSetDirectory = NULL;
++    char* rcbReference = NULL;  // RCB: report control block
++    PyGILState_STATE state = PyGILState_Ensure();
++    if (!PyTuple_Check(context) ||
++        !PyArg_ParseTuple(context, "OOOs", &self, &cb, &dataSetDirectory, &rcbReference) ||
++        !PyCallable_Check(cb)) {
++        PyErr_SetString(PyExc_TypeError, "expected a tuple with 3 elements: python callback function, data set directory and the RCB reference path.");
++        PyGILState_Release(state);
++        return;
++    }
++
++    PyObject* args = PyTuple_New(2);
++    PyTuple_SetItem(args, 0, dataSetDirectory);
++    PyTuple_SetItem(args, 1, SWIG_NewPointerObj(SWIG_as_voidptr(report), SWIGTYPE_p_sClientReport, 0));
++
++    PyObject_CallObject(cb, args);
++    PyGILState_Release(state);
++}
++
++bool ControlObjectClient_operate_no_gil(ControlObjectClient self, MmsValue* ctlVal, uint64_t operTime) {
++    bool success = false;
++    Py_BEGIN_ALLOW_THREADS
++    success = ControlObjectClient_operate(self, ctlVal, operTime);
++    Py_END_ALLOW_THREADS
++    return success;
++}
++
++MmsValue* IedConnection_readObject_no_gil(IedConnection self, IedClientError* error, const char* dataAttributeReference, FunctionalConstraint fc) {
++    MmsValue* value = NULL;
++    Py_BEGIN_ALLOW_THREADS
++    value = IedConnection_readObject(self, error, dataAttributeReference, fc);
++    Py_END_ALLOW_THREADS
++    return value;
++}
++
++ClientDataSet IedConnection_readDataSetValues_no_gil(IedConnection self, IedClientError* error, const char* dataSetReference, ClientDataSet dataSet) {
++    ClientDataSet value = NULL;
++    Py_BEGIN_ALLOW_THREADS
++    value = IedConnection_readDataSetValues(self, error, dataSetReference, dataSet);
++    Py_END_ALLOW_THREADS
++    return value;
++}
++
++
++#endif
