@@ -2,6 +2,7 @@ import json
 import signal
 import grpc
 import iec61850
+import os
 import taipower_ancillary_pb2
 import taipower_ancillary_pb2_grpc
 
@@ -17,10 +18,11 @@ from proto_servicer import AncillaryInputsServicer
 
 
 class ProxyServer():
-    def __init__(self, config_path):
+    def __init__(self, config_path, ancillary_backend_server_address):
         self._running = False
         self._iec_port = 102
         self._grpc_port = 61850
+        self._ancillary_backend_server_address = ancillary_backend_server_address
 
         self._config_path = config_path
         with open(config_path) as f:
@@ -49,7 +51,7 @@ class ProxyServer():
         iec61850.IedServer_destroy(self._ied_server)
 
     def _init_grpc_server(self):
-        self._outward_grpc_channel = grpc.insecure_channel('broker:61852')
+        self._outward_grpc_channel = grpc.insecure_channel(self._ancillary_backend_server_address)
         self._outward_stub = taipower_ancillary_pb2_grpc.AncillaryOutputsStub(self._outward_grpc_channel)
 
         self._grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -149,7 +151,9 @@ class ProxyServer():
 
 
 def main():
-    server = ProxyServer('config/points.json')
+    ancillary_backend_server_address = os.environ.get('ANCILLARY_BACKEND_SERVER_ADDRESS', 'broker:61852')
+    print('ancillary_backend_server_address: {}'.format(ancillary_backend_server_address))
+    server = ProxyServer('config/points.json', ancillary_backend_server_address)
     if not server.start():
         exit(1)
 
