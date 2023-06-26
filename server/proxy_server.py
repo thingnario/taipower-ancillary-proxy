@@ -93,6 +93,8 @@ class ProxyServer():
         self._init_grpc_server()
 
         def sigint_handler(sig, frame):
+            self.stop()
+            self._grpc_server.stop(None)
             self._running = False
 
         signal.signal(signal.SIGINT, sigint_handler)
