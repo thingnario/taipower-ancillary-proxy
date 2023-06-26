@@ -5,7 +5,6 @@
 %ignore LogicalNode_hasBufferedReports(LogicalNode* node);
 %ignore LogicalNode_hasUnbufferedReports(LogicalNode* node);
 %ignore MmsConnection_setIsoConnectionParameters(MmsConnection self, IsoConnectionParameters* params);
-
 %include "stdint.i"
 %{
 #include <iec61850_client.h>
