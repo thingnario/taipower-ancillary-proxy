@@ -5,9 +5,10 @@ from model_loader import load_model, get_mms_loader
 
 
 class DummyClient():
-    def __init__(self, host, port=102):
+    def __init__(self, host, port, config_path):
         self._host = host
         self._port = port
+        self._config_path = config_path
         self._control_blocks = None
         self._is_under_capacity = False
         self._service_status_count = 0
@@ -159,7 +160,7 @@ class DummyClient():
 
         print('Connected to {}:{}'.format(self._host, self._port))
 
-        model = load_model('/config/points.json')
+        model = load_model(self._config_path)
         self.create_control_blocks(conn)
 
         error = self.setup_reporting(
@@ -193,13 +194,16 @@ def _parse_args():
     parser.add_argument(
         '--port', default=102, type=int,
         help='port of the server, default 102')
+    parser.add_argument(
+        '--config-path', default='../config/points.json',
+        help='path to the config file, default ../config/points.json')
 
     return parser.parse_args()
 
 
 def main():
     args = _parse_args()
-    client = DummyClient(args.host, args.port)
+    client = DummyClient(args.host, args.port, args.config_path)
     client.run()
     return 0
 
