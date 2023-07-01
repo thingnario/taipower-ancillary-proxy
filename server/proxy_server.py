@@ -151,7 +151,7 @@ class ProxyServer():
 
 
 def main():
-    ancillary_backend_server_address = os.environ.get('ANCILLARY_BACKEND_SERVER_ADDRESS', 'broker:61852')
+    ancillary_backend_server_address = os.environ.get('ANCILLARY_BACKEND_SERVER_ADDRESS', 'localhost:61852')
     print('ancillary_backend_server_address: {}'.format(ancillary_backend_server_address))
     server = ProxyServer('config/points.json', ancillary_backend_server_address)
     if not server.start():
