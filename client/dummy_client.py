@@ -14,6 +14,7 @@ class DummyClient():
         self._service_status_count = 0
 
     def read_point(self, point, conn):
+        print('Read point: {}'.format(point['path']))
         loader = get_mms_loader(point['type'])
         if loader is None:
             print('Cannot find corresponding converter for {}'.format(
@@ -32,6 +33,7 @@ class DummyClient():
         return value, error
 
     def read_data_set(self, data_set_path, conn):
+        print('Read data set: {}'.format(data_set_path))
         res = iec61850.IedConnection_readDataSetValues_no_gil(
             conn, data_set_path, None)
         if res is None or isinstance(res, int):
@@ -51,6 +53,7 @@ class DummyClient():
         return data_set, error
 
     def create_control_blocks(self, conn):
+        print('Create control blocks')
         control_blocks = {
             'capacity': iec61850.ControlObjectClient_create(
                 "testmodelASG00001/SPIGAPC01.SPCSO1", conn),
@@ -65,6 +68,7 @@ class DummyClient():
         self._control_blocks = control_blocks
 
     def perfom_control(self):
+        print('Perform control')
         if self._control_blocks is None:
             return
 
@@ -86,7 +90,7 @@ class DummyClient():
         self._service_status_count = (self._service_status_count + 1) % 10
 
     def handle_report(self, parameter, report):
-        print('handle report')
+        print('Handle report')
         dataset_directory = parameter
         dataset_values = iec61850.ClientReport_getDataSetValues(report)
         print("received report for {} with rptId {}".format(
@@ -111,6 +115,7 @@ class DummyClient():
                     print("  {} (included for reason {}): {}".format(entry_name, reason, value_str))
 
     def setup_reporting(self, conn, dataset_path, rcb_reference):
+        print('Setup reporting')
         [dataset_directory, error] = iec61850.IedConnection_getDataSetDirectory(
             conn, dataset_path, None)
         if error != iec61850.IED_ERROR_OK:
@@ -151,6 +156,7 @@ class DummyClient():
 
 
     def run(self):
+        print('Run')
         conn = iec61850.IedConnection_create()
         error = iec61850.IedConnection_connect(conn, self._host, self._port)
         if error != iec61850.IED_ERROR_OK:

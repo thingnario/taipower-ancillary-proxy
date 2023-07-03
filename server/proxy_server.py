@@ -30,6 +30,7 @@ class ProxyServer():
         self._model = load_model(self._model_config)
 
     def _init_ied_server(self):
+        print('Start MMS server at port {}'.format(self._iec_port))
         self._ied_server = iec61850.IedServer_create(self._model['inst'])
         self._bind_controll_handler()
 
@@ -44,6 +45,7 @@ class ProxyServer():
         return True
 
     def _destroy_ied_server(self):
+        print('Stop MMS server')
         # stop MMS server - close TCP server socket and all client sockets
         iec61850.IedServer_stop(self._ied_server)
 
@@ -51,6 +53,7 @@ class ProxyServer():
         iec61850.IedServer_destroy(self._ied_server)
 
     def _init_grpc_server(self):
+        print('Start gRPC server at port {}'.format(self._grpc_port))
         self._outward_grpc_channel = grpc.insecure_channel(self._ancillary_backend_server_address)
         self._outward_stub = taipower_ancillary_pb2_grpc.AncillaryOutputsStub(self._outward_grpc_channel)
 
@@ -60,6 +63,9 @@ class ProxyServer():
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
     def handle_control_cmd(self, action, parameter, mms_value, test):
+        print('Received control command: action={}, parameter={}, mms_value={}, test={}'.format(
+            action, parameter, mms_value, test)
+        )
         do_path = parameter
         da_info = find_data_attribute(self._model, do_path + '.Oper.ctlVal') or\
                   find_data_attribute(self._model, do_path + '.Oper.ctlVal.i')
@@ -76,6 +82,7 @@ class ProxyServer():
         
 
     def _bind_controll_handler(self):
+        print('Bind control handler')
         for do_info in get_data_objects(self._model):
             if not do_info['controllable']:
                 continue
@@ -88,6 +95,7 @@ class ProxyServer():
                 self._ied_server, do_info['inst'], iec61850.ControlHandlerProxy, context)
 
     def start(self):
+        print('Initialize proxy server')
         self._running = self._init_ied_server()
         if not self._running:
             return False
@@ -103,23 +111,27 @@ class ProxyServer():
         return True
 
     def run(self):
+        print('Run proxy server')
         self._grpc_server.start()
         self._grpc_server.wait_for_termination()
         self._running = False
 
     def stop(self):
+        print('Stop proxy server')
         self._destroy_ied_server()
 
         # destroy dynamic data model
         iec61850.IedModel_destroy(self._model['inst'])
 
     def restart_ied_server(self):
+        print('Restart IED server')
         self._destroy_ied_server()
         # Must reload model as it will also be destroyed in _destroy_ied_server
         self._model = load_model(self._model_config)
         self._init_ied_server()
 
     def update_value(self, values):
+        print('Update value: {}'.format(values))
         iec61850.IedServer_lockDataModel(self._ied_server)
 
         for da_path, value in values.items():
@@ -130,10 +142,12 @@ class ProxyServer():
         iec61850.IedServer_unlockDataModel(self._ied_server)
 
     def _save_model_config(self):
+        print('Save model config to {}'.format(self._config_path))
         with open(self._config_path, 'w') as f:
             json.dump(self._model_config, f, indent=2)
 
     def add_logical_devices(self, _devices):
+        print('Add logical devices: {}'.format(_devices))
         devices = list(filter(lambda d: d['name'] not in self._model['logical_devices'], _devices))
         self._model_config['logical_devices'].extend(devices)
         for device in devices:
@@ -141,6 +155,7 @@ class ProxyServer():
         self._save_model_config()
 
     def reset_logical_devices(self, devices):
+        print('Reset logical devices')
         self._model_config['logical_devices'] = devices
         model = load_model(self._model_config)
 
