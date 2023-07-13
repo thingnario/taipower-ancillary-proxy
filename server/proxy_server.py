@@ -7,14 +7,28 @@ import taipower_ancillary_pb2
 import taipower_ancillary_pb2_grpc
 
 from concurrent import futures
-from distutils.command.config import config
 from model_loader import (UPDATERS,
-                          MMS_LOADERS,
                           load_model,
                           load_logical_device,
                           find_data_attribute,
                           get_data_objects,)
 from proto_servicer import AncillaryInputsServicer
+
+
+def read_mms_value(mms_value):
+    mms_value_type = iec61850.MmsValue_getTypeString(mms_value)
+    if mms_value_type == 'boolean':
+        return iec61850.MmsValue_getBoolean(mms_value)
+    elif mms_value_type == 'integer':
+        return iec61850.MmsValue_toInt32(mms_value)
+    elif mms_value_type == 'float':
+        return iec61850.MmsValue_toFloat(mms_value)
+    elif mms_value_type == 'structure':
+        array_size = iec61850.MmsValue_getArraySize(mms_value)
+        return [read_mms_value(iec61850.MmsValue_getElement(mms_value, i)) for i in range(array_size)]
+    else:
+        print(f'Unsupported MMS value type {mms_value_type}')
+        return None
 
 
 class ProxyServer():
@@ -63,18 +77,19 @@ class ProxyServer():
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
     def handle_control_cmd(self, action, parameter, mms_value, test):
-        print('Received control command: action={}, parameter={}, mms_value={}, test={}'.format(
-            action, parameter, mms_value, test)
-        )
         do_path = parameter
-        da_info = find_data_attribute(self._model, do_path + '.Oper.ctlVal') or\
-                  find_data_attribute(self._model, do_path + '.Oper.ctlVal.i')
-        if not da_info:
-            print('No corresponding control point for {}, skip the control command'.format(do_path))
-            return
+        print(f'Handle control command for DO: {do_path}')
+        try:
+            # FIXME: type of orIdentSize should be int*, so 1024 is not correct
+            # print(f'Originator Identifier: {iec61850.ControlAction_getOrIdent(action, 1024)}')
+            print(f'Originator Category: {iec61850.ControlAction_getOrCat(action)}')
+            print(f'Control Number: {iec61850.ControlAction_getCtlNum(action)}')
+            print(f'Control Time: {iec61850.ControlAction_getControlTime(action)}')
+        except Exception as e:
+            print(f'Exception: {e}')
 
-        loader = MMS_LOADERS[da_info['data_type']]
-        value = loader(mms_value)
+        value = read_mms_value(mms_value)
+        print('Control point {} is set to {}'.format(do_path, value))
         response = self._outward_stub.update_point_values(
             taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({do_path: value})))
         return response

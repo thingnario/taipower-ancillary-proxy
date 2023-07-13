@@ -74,14 +74,6 @@ UPDATERS = {
     'uint32': iec61850.IedServer_updateUnsignedAttributeValue,
 }
 
-MMS_LOADERS = {
-    'int32': iec61850.MmsValue_toInt32,
-    'int64': iec61850.MmsValue_toInt64,
-    'float': iec61850.MmsValue_toFloat,
-    'boolean': iec61850.MmsValue_getBoolean,
-    'uint32': iec61850.MmsValue_toUint32,
-}
-
 TRIGGER_OPTIONS = {
     'data_changed': iec61850.TRG_OPT_DATA_CHANGED,
     'data_updated': iec61850.TRG_OPT_DATA_UPDATE,
