@@ -191,7 +191,7 @@ def get_data_objects(model):
     for ld_name, ld_info in model['logical_devices'].items():
         for ln_name, ln_info in ld_info['logical_nodes'].items():
             for do_name, do_info in ln_info['data_objects'].items():
-                do_info['path'] = '{}.{}.{}'.format(ld_name, ln_name, do_name)
+                do_info['path'] = '{}/{}.{}'.format(ld_name, ln_name, do_name)
                 yield do_info
 
 def load_model(model_config):
