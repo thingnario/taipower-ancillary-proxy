@@ -178,7 +178,9 @@ def load_logical_device(model, config):
 
 
 def find_data_attribute(model, da_path):
-    ld, ln, do, da = da_path.split('.', 3)
+    ld, rest = da_path.split('/', 1)
+    ln, do, da = rest.split('.', 2)
+
     ld_info = model['logical_devices'][ld]
     ln_info = ld_info['logical_nodes'][ln]
     do_info = ln_info['data_objects'][do]
