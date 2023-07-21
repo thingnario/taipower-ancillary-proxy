@@ -168,7 +168,7 @@ def send_command(annotation, connection, reference, value):
     )
 
 
-def notify(group_code=1):
+def notify(group_code=90001):
     """平台通知用電量不足／SOC 準備量不足／機組剩餘可用量不足
 
     平台於非調度執行期間，將持續偵測該報價代碼之交易資源準備量，當交易資源之
@@ -196,7 +196,7 @@ def notify(group_code=1):
         send_command("平台復歸", conn, f"ASG{group_code:05d}/SPIGAPC01.SPCSO1", False)
 
 
-def activate(group_code=1, capacity=1):  # 單位為 0.01MW。乘上 100 倍後發送指令。
+def activate(group_code=90001, capacity=1):  # 單位為 0.01MW。乘上 100 倍後發送指令。
     """即時備轉啟動指令
 
     當電力系統因事故而有即時備轉輔助服務需求時，平台將發送此調度指令予報價代碼，以啟動即時備轉服務。
@@ -290,7 +290,7 @@ def activate(group_code=1, capacity=1):  # 單位為 0.01MW。乘上 100 倍後�
         assert value is False, "回報接獲執行指令在 2.5 秒後未被復歸，應為 False"
 
 
-def deactivate(group_code=1):
+def deactivate(group_code=90001):
     """即時備轉結束指令
 
     平台得發送此調度指令結束該次調度執行事件，報價代碼需接續回覆結束指令接獲回報(相關說明請見 3.2.1)。
