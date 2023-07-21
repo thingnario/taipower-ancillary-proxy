@@ -1,3 +1,4 @@
+import arrow
 import contextlib
 import datetime
 import time
@@ -112,6 +113,14 @@ def handle_report(dataset_directory, report):
             f"{attribute_notes[attribute]} because {result[data_reference]['reason']}"
         )
         print(f"{data_reference}: {result[data_reference]['value']}\n")
+
+    timestamp = combine_timestamp(
+        high=result["ASR00001/SPIGGIO01.AnIn1.mag.i[MX]"]["value"],
+        low=result["ASR00001/SPIGGIO01.AnIn2.mag.i[MX]"]["value"],
+    )
+    print(
+        f"每分鐘時機點: {arrow.get(timestamp).to('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss')}"
+    )
 
 
 def report(resource_code=1):
