@@ -71,8 +71,8 @@ def handle_report(dataset_directory, report):
             "SPIMMXU01.TotW.mag.i[MX]": iec61850.MmsValue_toInt32,
             "SPIMMTR01.SupWh.actVal[ST]": iec61850.MmsValue_toInt64,
             "SPIMMTR01.DmdWh.actVal[ST]": iec61850.MmsValue_toInt64,
-            "SPIZBAT01.InBatV.mag.i[MX]": iec61850.MmsValue_toInt32,
-            "SPIZBAT01.BatSt.stVal[ST]": iec61850.MmsValue_getBoolean,
+            "SPIDBAT01.InBatV.mag.i[MX]": iec61850.MmsValue_toInt32,
+            "SPIDBAT01.BatSt.stVal[ST]": iec61850.MmsValue_getBoolean,
             "SPIGGIO01.AnIn1.mag.i[MX]": iec61850.MmsValue_toInt32,
             "SPIGGIO01.AnIn2.mag.i[MX]": iec61850.MmsValue_toInt32,
         }[attribute](mms_value)
@@ -101,8 +101,8 @@ def handle_report(dataset_directory, report):
         "SPIMMXU01.TotW.mag.i[MX]": "瞬時輸出/入總實功率(kW) (int32)",
         "SPIMMTR01.SupWh.actVal[ST]": "瞬時累計輸出/發電電能量(kWh) (int64)",
         "SPIMMTR01.DmdWh.actVal[ST]": "瞬時累計輸入/用電電能量(kWh) (int64)",
-        "SPIZBAT01.InBatV.mag.i[MX]": "儲能系統瞬時剩餘電量 SOC(0.01kWh), 自用發電設備 M2 交易表計總實功率 (int32)",
-        "SPIZBAT01.BatSt.stVal[ST]": "儲能系統/發電設備狀態, 用戶狀態 (boolean)",
+        "SPIDBAT01.InBatV.mag.i[MX]": "儲能系統瞬時剩餘電量 SOC(0.01kWh), 自用發電設備 M2 交易表計總實功率 (int32)",
+        "SPIDBAT01.BatSt.stVal[ST]": "儲能系統/發電設備狀態, 用戶狀態 (boolean)",
         "SPIGGIO01.AnIn1.mag.i[MX]": "每分鐘時間點[Unix Timestamp-H] (int32)",
         "SPIGGIO01.AnIn2.mag.i[MX]": "每分鐘時間點[Unix Timestamp-L] (int32)",
     }
