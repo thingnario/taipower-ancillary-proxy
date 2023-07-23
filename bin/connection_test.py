@@ -66,72 +66,72 @@ def handle_report(dataset_directory, report):
         )  # ASR00001/SPIMMXU01.TotW.mag.i[MX]
 
         # value
-        attribute = data_reference.split("/")[-1]  # SPIMMXU01.TotW.mag.i[MX]
+        attribute_reference = data_reference.split("/")[-1]  # SPIMMXU01.TotW.mag.i[MX]
+        attribute_name = attribute_reference.split(".", 1)[1]  # TotW.mag.i[MX]
         mms_value = iec61850.MmsValue_getElement(dataset_values, i)
         value = {
-            "SPIMMXU01.TotW.mag.i[MX]": iec61850.MmsValue_toInt32,
-            "SPIMMTR01.SupWh.actVal[ST]": iec61850.MmsValue_toInt64,
-            "SPIMMTR01.DmdWh.actVal[ST]": iec61850.MmsValue_toInt64,
-            "SPIDBAT01.InBatV.mag.i[MX]": iec61850.MmsValue_toInt32,
-            "SPIDBAT01.BatSt.stVal[ST]": iec61850.MmsValue_getBoolean,
-            "SPIGGIO01.AnIn1.mag.i[MX]": iec61850.MmsValue_toInt32,
-            "SPIGGIO01.AnIn2.mag.i[MX]": iec61850.MmsValue_toInt32,
-        }[attribute](mms_value)
+            "TotW.mag.i[MX]": iec61850.MmsValue_toInt32,
+            "SupWh.actVal[ST]": iec61850.MmsValue_toInt64,
+            "DmdWh.actVal[ST]": iec61850.MmsValue_toInt64,
+            "InBatV.mag.i[MX]": iec61850.MmsValue_toInt32,
+            "BatSt.stVal[ST]": iec61850.MmsValue_getBoolean,
+            "AnIn1.mag.i[MX]": iec61850.MmsValue_toInt32,
+            "AnIn2.mag.i[MX]": iec61850.MmsValue_toInt32,
+        }[attribute_name](mms_value)
 
-        return data_reference, value, reason
+        note = {
+            "TotW.mag.i[MX]": "瞬時輸出/入總實功率(kW) (int32)",
+            "SupWh.actVal[ST]": "瞬時累計輸出/發電電能量(kWh) (int64)",
+            "DmdWh.actVal[ST]": "瞬時累計輸入/用電電能量(kWh) (int64)",
+            "InBatV.mag.i[MX]": "儲能系統瞬時剩餘電量 SOC(0.01kWh), 自用發電設備 M2 交易表計總實功率 (int32)",
+            "BatSt.stVal[ST]": "儲能系統/發電設備狀態, 用戶狀態 (boolean)",
+            "AnIn1.mag.i[MX]": "每分鐘時間點[Unix Timestamp-H] (int32)",
+            "AnIn2.mag.i[MX]": "每分鐘時間點[Unix Timestamp-L] (int32)",
+        }[attribute_name]
+
+        return data_reference, value, reason, note
 
     result = {
-        data_reference: {"value": value, "reason": reason}
-        for (data_reference, value, reason) in [
+        data_reference: {"value": value, "reason": reason, "note": note}
+        for (data_reference, value, reason, note) in [
             read_dataset_entry(i)
             for i in range(iec61850.LinkedList_size(dataset_directory))
         ]
     }
 
-    attribute_updated_time = combine_timestamp(
-        result["ASR00001/SPIGGIO01.AnIn1.mag.i[MX]"]["value"],
-        result["ASR00001/SPIGGIO01.AnIn2.mag.i[MX]"]["value"],
-    )
-    print(
-        "Attribute Updated Time: {}\n".format(
-            datetime.datetime.fromtimestamp(attribute_updated_time)
-        )
-    )
+    # Print values of the report
+    for reference, value in result.items():
+        print(f"{value['note']} because {value['reason']}")
+        print(f"{reference}: {value['value']}\n")
 
-    attribute_notes = {
-        "SPIMMXU01.TotW.mag.i[MX]": "瞬時輸出/入總實功率(kW) (int32)",
-        "SPIMMTR01.SupWh.actVal[ST]": "瞬時累計輸出/發電電能量(kWh) (int64)",
-        "SPIMMTR01.DmdWh.actVal[ST]": "瞬時累計輸入/用電電能量(kWh) (int64)",
-        "SPIDBAT01.InBatV.mag.i[MX]": "儲能系統瞬時剩餘電量 SOC(0.01kWh), 自用發電設備 M2 交易表計總實功率 (int32)",
-        "SPIDBAT01.BatSt.stVal[ST]": "儲能系統/發電設備狀態, 用戶狀態 (boolean)",
-        "SPIGGIO01.AnIn1.mag.i[MX]": "每分鐘時間點[Unix Timestamp-H] (int32)",
-        "SPIGGIO01.AnIn2.mag.i[MX]": "每分鐘時間點[Unix Timestamp-L] (int32)",
-    }
-    for data_reference in result.keys():
-        attribute = data_reference.split("/")[-1]
-        print(
-            f"{attribute_notes[attribute]} because {result[data_reference]['reason']}"
-        )
-        print(f"{data_reference}: {result[data_reference]['value']}\n")
-
-    timestamp = combine_timestamp(
-        high=result["ASR00001/SPIGGIO01.AnIn1.mag.i[MX]"]["value"],
-        low=result["ASR00001/SPIGGIO01.AnIn2.mag.i[MX]"]["value"],
-    )
+    # Print timestamp of the report
+    # 每分鐘時間點[Unix Timestamp-H], endswith AnIn1.mag.i[MX]
+    high = [v for k, v in result.items() if k.endswith("AnIn1.mag.i[MX]")][0]["value"]
+    # 每分鐘時間點[Unix Timestamp-L], endswith AnIn2.mag.i[MX]
+    low = [v for k, v in result.items() if k.endswith("AnIn2.mag.i[MX]")][0]["value"]
+    timestamp = combine_timestamp(high=high, low=low)
     print(
         f"每分鐘時機點: {arrow.get(timestamp).to('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss')}"
     )
 
 
-def report(resource_code=1):
+def report(resource_code=1, product="SUP"):  # SPI or SUP
+    rcb_reference = {
+        "SPI": f"ASR{resource_code:05d}/LLN0.RP.urcb04",
+        "SUP": f"ASR{resource_code:05d}/LLN0.RP.urcb05",
+    }[product]
+    dataset_reference = {
+        "SPI": f"ASR{resource_code:05d}/LLN0.AISPI",
+        "SUP": f"ASR{resource_code:05d}/LLN0.AISUP",
+    }[product]
+
     with ied_connect() as conn:
         # get RCB object from server
-        rcb_reference = f"ASR{resource_code:05d}/LLN0.RP.urcb04"
         rcb, _ = iec61850.IedConnection_getRCBValues(conn, rcb_reference, None)
 
         # install the report handler
         dataset_directory, _ = iec61850.IedConnection_getDataSetDirectory(
-            conn, f"ASR{resource_code:05d}/LLN0.AISPI", None
+            conn, dataset_reference, None
         )
         context = iec61850.transformReportHandlerContext(
             (None, handle_report, dataset_directory, rcb_reference)
@@ -177,7 +177,7 @@ def send_command(annotation, connection, reference, value):
     )
 
 
-def notify(group_code=90001):
+def notify(group_code=90001, product="SUP"):  # SPI or SUP
     """平台通知用電量不足／SOC 準備量不足／機組剩餘可用量不足
 
     平台於非調度執行期間，將持續偵測該報價代碼之交易資源準備量，當交易資源之
@@ -196,16 +196,20 @@ def notify(group_code=90001):
         send_command(
             "平台通知用電量不足／SOC 準備量不足／機組剩餘可用量不足",
             conn,
-            f"ASG{group_code:05d}/SPIGAPC01.SPCSO1",
+            f"ASG{group_code:05d}/{product}GAPC01.SPCSO1",
             True,
         )
 
         time.sleep(2.5)
 
-        send_command("平台復歸", conn, f"ASG{group_code:05d}/SPIGAPC01.SPCSO1", False)
+        send_command("平台復歸", conn, f"ASG{group_code:05d}/{product}GAPC01.SPCSO1", False)
 
 
-def activate(group_code=90001, capacity=1):  # 單位為 0.01MW。乘上 100 倍後發送指令。
+def activate(
+    group_code=90001,
+    capacity=1,  # 單位為 0.01MW。乘上 100 倍後發送指令。
+    product="SUP",  # SPI or SUP
+):
     """即時備轉啟動指令
 
     當電力系統因事故而有即時備轉輔助服務需求時，平台將發送此調度指令予報價代碼，以啟動即時備轉服務。
@@ -233,13 +237,13 @@ def activate(group_code=90001, capacity=1):  # 單位為 0.01MW。乘上 100 倍
         send_command(
             "啟動指令發出時間(Unix Timestamp-H)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO01.AnOut1",
+            f"ASG{group_code:05d}/{product}GGIO01.AnOut1",
             high,
         )
         send_command(
             "啟動指令發出時間(Unix Timestamp-L)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO01.AnOut2",
+            f"ASG{group_code:05d}/{product}GGIO01.AnOut2",
             low,
         )
 
@@ -249,13 +253,13 @@ def activate(group_code=90001, capacity=1):  # 單位為 0.01MW。乘上 100 倍
         send_command(
             "指令服務開始時間(Unix Timestamp-H)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO02.AnOut1",
+            f"ASG{group_code:05d}/{product}GGIO02.AnOut1",
             high,
         )
         send_command(
             "指令服務開始時間(Unix Timestamp-L)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO02.AnOut2",
+            f"ASG{group_code:05d}/{product}GGIO02.AnOut2",
             low,
         )
 
@@ -265,24 +269,26 @@ def activate(group_code=90001, capacity=1):  # 單位為 0.01MW。乘上 100 倍
         send_command(
             "指令服務結束時間(Unix Timestamp-H)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO05.AnOut1",
+            f"ASG{group_code:05d}/{product}GGIO05.AnOut1",
             high,
         )
         send_command(
             "指令服務結束時間(Unix Timestamp-L)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO05.AnOut2",
+            f"ASG{group_code:05d}/{product}GGIO05.AnOut2",
             low,
         )
 
         # AO: 指令執行容量。單位為 0.01MW。乘上 100 倍後發送指令。
-        send_command("指令執行容量", conn, f"ASG{group_code:05d}/SPIGGIO03.AnOut1", capacity)
+        send_command(
+            "指令執行容量", conn, f"ASG{group_code:05d}/{product}GGIO03.AnOut1", capacity
+        )
 
         # DO: 啟動指令
-        send_command("啟動指令", conn, f"ASG{group_code:05d}/SPIGAPC02.SPCSO1", True)
+        send_command("啟動指令", conn, f"ASG{group_code:05d}/{product}GAPC02.SPCSO1", True)
 
         # 確認合格交易者有收到指令
-        command_received_reference = f"ASG{group_code:05d}/SPIGGIO03.Ind1.stVal"
+        command_received_reference = f"ASG{group_code:05d}/{product}GGIO03.Ind1.stVal"
         mms_value, _ = iec61850.IedConnection_readObject(
             conn, command_received_reference, iec61850.IEC61850_FC_ST
         )
@@ -299,7 +305,7 @@ def activate(group_code=90001, capacity=1):  # 單位為 0.01MW。乘上 100 倍
         assert value is False, "回報接獲執行指令在 2.5 秒後未被復歸，應為 False"
 
 
-def deactivate(group_code=90001):
+def deactivate(group_code=90001, product="SUP"):  # SPI or SUP
     """即時備轉結束指令
 
     平台得發送此調度指令結束該次調度執行事件，報價代碼需接續回覆結束指令接獲回報(相關說明請見 3.2.1)。
@@ -318,21 +324,21 @@ def deactivate(group_code=90001):
         send_command(
             "結束指令發出時間(Unix Timestamp-H)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO04.AnOut1",
+            f"ASG{group_code:05d}/{product}GGIO04.AnOut1",
             high,
         )
         send_command(
             "結束指令發出時間(Unix Timestamp-L)",
             conn,
-            f"ASG{group_code:05d}/SPIGGIO04.AnOut2",
+            f"ASG{group_code:05d}/{product}GGIO04.AnOut2",
             low,
         )
 
         # DO: 結束指令
-        send_command("啟動指令", conn, f"ASG{group_code:05d}/SPIGAPC03.SPCSO1", True)
+        send_command("啟動指令", conn, f"ASG{group_code:05d}/{product}GAPC03.SPCSO1", True)
 
         # 確認合格交易者有收到指令
-        command_received_reference = f"ASG{group_code:05d}/SPIGGIO04.Ind1.stVal"
+        command_received_reference = f"ASG{group_code:05d}/{product}GGIO04.Ind1.stVal"
         mms_value, _ = iec61850.IedConnection_readObject(
             conn, command_received_reference, iec61850.IEC61850_FC_ST
         )
