@@ -16,6 +16,8 @@ services:
         max-size: "1g"
         max-file: "3"
         labels: "ancillary-proxy"
+    environment:
+      - ANCILLARY_BACKEND_SERVER_ADDRESS=${ANCILLARY_BACKEND_SERVER_ADDRESS}
     networks:
       - default
       - grpc
