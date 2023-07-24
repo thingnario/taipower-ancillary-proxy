@@ -86,8 +86,8 @@ class ProxyServer():
         #
         # Possible solutions:
         # - Update the code to use ControlHandlerForPython
-        do_path = parameter
-        print(f'Handle control command for DO: {do_path}')
+        reference = parameter
+        print(f'Handle control command: {reference}')
         try:
             # FIXME: type of orIdentSize should be int*, so 1024 is not correct
             # print(f'Originator Identifier: {iec61850.ControlAction_getOrIdent(action, 1024)}')
@@ -98,12 +98,16 @@ class ProxyServer():
             print(f'Exception: {e}')
 
         value = read_mms_value(mms_value)
-        print('Control point {} is set to {}'.format(do_path, value))
-        response = self._outward_stub.update_point_values(
-            taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({do_path: value})))
-        return response
-        
-        
+        print(f'Update {reference} to {value}')
+        try:
+            response = self._outward_stub.update_point_values(
+                taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({reference: value})))
+            print(f'Handled control command: {reference}')
+            return response
+        except Exception as e:
+            print(f'Exception: {e}')
+            return None
+
 
     def _bind_controll_handler(self):
         print('Bind control handler')

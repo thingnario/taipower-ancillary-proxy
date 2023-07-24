@@ -11,7 +11,7 @@ import iec61850
 
 
 @contextlib.contextmanager
-def ied_connect(host="localhost", port=102):
+def ied_connect(host, port):
     conn = iec61850.IedConnection_create()
     error = iec61850.IedConnection_connect(conn, host, port)
     assert error == iec61850.IED_ERROR_OK
@@ -117,7 +117,7 @@ def handle_report(dataset_directory, report):
     )
 
 
-def report(resource_code=1, product="SUP"):  # SPI or SUP
+def report(resource_code=1, product="SUP", host="localhost", port=102):  # SPI or SUP
     rcb_reference = {
         "SPI": f"ASR{resource_code:05d}/LLN0.RP.urcb04",
         "SUP": f"ASR{resource_code:05d}/LLN0.RP.urcb05",
@@ -127,7 +127,7 @@ def report(resource_code=1, product="SUP"):  # SPI or SUP
         "SUP": f"ASR{resource_code:05d}/LLN0.AISUP",
     }[product]
 
-    with ied_connect() as conn:
+    with ied_connect(host, port) as conn:
         # get RCB object from server
         rcb, _ = iec61850.IedConnection_getRCBValues(conn, rcb_reference, None)
 
@@ -179,7 +179,7 @@ def send_command(annotation, connection, reference, value):
     )
 
 
-def notify(group_code=90001, product="SUP"):  # SPI or SUP
+def notify(group_code=90001, product="SUP", host="localhost", port=102):  # SPI or SUP
     """平台通知用電量不足／SOC 準備量不足／機組剩餘可用量不足
 
     平台於非調度執行期間，將持續偵測該報價代碼之交易資源準備量，當交易資源之
@@ -194,7 +194,7 @@ def notify(group_code=90001, product="SUP"):  # SPI or SUP
 
     每分鐘偵測及發佈
     """
-    with ied_connect() as conn:
+    with ied_connect(host, port) as conn:
         send_command(
             "平台通知用電量不足／SOC 準備量不足／機組剩餘可用量不足",
             conn,
@@ -211,6 +211,8 @@ def activate(
     group_code=90001,
     capacity=1,  # 單位為 0.01MW。乘上 100 倍後發送指令。
     product="SUP",  # SPI or SUP
+    host="localhost",
+    port=102,
 ):
     """即時備轉啟動指令
 
@@ -232,7 +234,7 @@ def activate(
     - group_code: 報價代碼
     - capacity: 指令執行容量，單位為 MW。
     """
-    with ied_connect() as conn:
+    with ied_connect(host, port) as conn:
         threads = []
 
         # AO: 啟動指令發出時間
@@ -364,7 +366,9 @@ def activate(
         assert value is False, "回報接獲執行指令在 2.5 秒後未被復歸，應為 False"
 
 
-def deactivate(group_code=90001, product="SUP"):  # SPI or SUP
+def deactivate(
+    group_code=90001, product="SUP", host="localhost", port=102  # SPI or SUP
+):
     """即時備轉結束指令
 
     平台得發送此調度指令結束該次調度執行事件，報價代碼需接續回覆結束指令接獲回報(相關說明請見 3.2.1)。
@@ -376,7 +380,7 @@ def deactivate(group_code=90001, product="SUP"):  # SPI or SUP
     - False: 未發出指令
     - True: 結束指令
     """
-    with ied_connect() as conn:
+    with ied_connect(host, port) as conn:
         threads = []
 
         # AO: 結束指令發出時間
