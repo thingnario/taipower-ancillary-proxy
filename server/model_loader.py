@@ -74,14 +74,6 @@ UPDATERS = {
     'uint32': iec61850.IedServer_updateUnsignedAttributeValue,
 }
 
-MMS_LOADERS = {
-    'int32': iec61850.MmsValue_toInt32,
-    'int64': iec61850.MmsValue_toInt64,
-    'float': iec61850.MmsValue_toFloat,
-    'boolean': iec61850.MmsValue_getBoolean,
-    'uint32': iec61850.MmsValue_toUint32,
-}
-
 TRIGGER_OPTIONS = {
     'data_changed': iec61850.TRG_OPT_DATA_CHANGED,
     'data_updated': iec61850.TRG_OPT_DATA_UPDATE,
@@ -158,6 +150,19 @@ def load_report(report, ln):
 def load_data_set(ln, config):
     data_set = iec61850.DataSet_create(config['name'], ln['inst'])
     for entry in config.get('entries', []):
+        '''
+        Note:
+
+        The data set entries are not IEC 61850 object reference but MMS variable names
+        that have to contain the LN name, the FC and subsequent path elements separated by "$" instead of ".".
+
+        This is due to efficiency reasons to avoid the creation of additional strings.
+
+        For example, "SPIGGIO01$ST$Ind1$stVal" is a valid data set entry variable name.
+
+        Reference:
+        https://support.mz-automation.de/doc/libiec61850/c/latest/group__DYNAMIC__MODEL.html#gadc9966ac9d1fe380e66ebc56f40f1bd4
+        '''
         iec61850.DataSetEntry_create(data_set, entry['variable'], -1, None)
     for report in config.get('reports', []):
         load_report(report, ln)
@@ -186,7 +191,9 @@ def load_logical_device(model, config):
 
 
 def find_data_attribute(model, da_path):
-    ld, ln, do, da = da_path.split('.', 3)
+    ld, rest = da_path.split('/', 1)
+    ln, do, da = rest.split('.', 2)
+
     ld_info = model['logical_devices'][ld]
     ln_info = ld_info['logical_nodes'][ln]
     do_info = ln_info['data_objects'][do]
@@ -197,7 +204,7 @@ def get_data_objects(model):
     for ld_name, ld_info in model['logical_devices'].items():
         for ln_name, ln_info in ld_info['logical_nodes'].items():
             for do_name, do_info in ln_info['data_objects'].items():
-                do_info['path'] = '{}.{}.{}'.format(ld_name, ln_name, do_name)
+                do_info['path'] = '{}/{}.{}'.format(ld_name, ln_name, do_name)
                 yield do_info
 
 def load_model(model_config):

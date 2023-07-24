@@ -66,10 +66,10 @@
               "name": "TmpSv",
               "entries": [
                 {
-                  "variable": "TTMP1$MX$TmpSv$instMag$i"
+                  "variable": "TTMP1.MX.TmpSv.instMag.i"
                 },
                 {
-                  "variable": "TTMP1$MX$TmpSv$mag$i"
+                  "variable": "TTMP1.MX.TmpSv.mag.i"
                 }
               ]
             }
