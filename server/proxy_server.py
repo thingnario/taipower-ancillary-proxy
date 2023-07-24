@@ -99,12 +99,15 @@ class ProxyServer():
 
         value = read_mms_value(mms_value)
         print(f'Update {reference} to {value}')
-        response = self._outward_stub.update_point_values(
-            taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({reference: value})))
-        print(f'Handled control command: {reference}')
-        return response
-        
-        
+        try:
+            response = self._outward_stub.update_point_values(
+                taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({reference: value})))
+            print(f'Handled control command: {reference}')
+            return response
+        except Exception as e:
+            print(f'Exception: {e}')
+            return None
+
 
     def _bind_controll_handler(self):
         print('Bind control handler')
