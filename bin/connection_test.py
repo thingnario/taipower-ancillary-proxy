@@ -1,6 +1,8 @@
 import arrow
 import contextlib
 import datetime
+import random
+import threading
 import time
 
 import fire
@@ -231,61 +233,118 @@ def activate(
     - capacity: 指令執行容量，單位為 MW。
     """
     with ied_connect() as conn:
+        threads = []
+
         # AO: 啟動指令發出時間
         command_submit_time = int(time.time())
-        high, low = split_timestamp(command_submit_time)
-        send_command(
-            "啟動指令發出時間(Unix Timestamp-H)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO01.AnOut1",
-            high,
+        submit_timestamp_high, submit_timestamp_low = split_timestamp(
+            command_submit_time
         )
-        send_command(
-            "啟動指令發出時間(Unix Timestamp-L)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO01.AnOut2",
-            low,
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "啟動指令發出時間(Unix Timestamp-H)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO01.AnOut1",
+                    submit_timestamp_high,
+                ),
+            )
+        )
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "啟動指令發出時間(Unix Timestamp-L)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO01.AnOut2",
+                    submit_timestamp_low,
+                ),
+            )
         )
 
         # AO: 指令服務開始時間
         start_execute_time = command_submit_time // 3600 * 3600 + 3600  # 下個整點
-        high, low = split_timestamp(start_execute_time)
-        send_command(
-            "指令服務開始時間(Unix Timestamp-H)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO02.AnOut1",
-            high,
+        start_timestamp_high, start_timestamp_low = split_timestamp(start_execute_time)
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令服務開始時間(Unix Timestamp-H)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO02.AnOut1",
+                    start_timestamp_high,
+                ),
+            )
         )
-        send_command(
-            "指令服務開始時間(Unix Timestamp-L)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO02.AnOut2",
-            low,
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令服務開始時間(Unix Timestamp-L)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO02.AnOut2",
+                    start_timestamp_low,
+                ),
+            )
         )
 
         # AO: 指令服務結束時間
         end_execute_time = start_execute_time + 3600  # 執行一小時
-        high, low = split_timestamp(end_execute_time)
-        send_command(
-            "指令服務結束時間(Unix Timestamp-H)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO05.AnOut1",
-            high,
+        end_timestamp_high, end_timestamp_low = split_timestamp(end_execute_time)
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令服務結束時間(Unix Timestamp-H)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO05.AnOut1",
+                    end_timestamp_high,
+                ),
+            )
         )
-        send_command(
-            "指令服務結束時間(Unix Timestamp-L)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO05.AnOut2",
-            low,
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令服務結束時間(Unix Timestamp-L)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO05.AnOut2",
+                    end_timestamp_low,
+                ),
+            )
         )
 
         # AO: 指令執行容量。單位為 0.01MW。乘上 100 倍後發送指令。
-        send_command(
-            "指令執行容量", conn, f"ASG{group_code:05d}/{product}GGIO03.AnOut1", capacity
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令執行容量",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO03.AnOut1",
+                    capacity,
+                ),
+            )
         )
 
         # DO: 啟動指令
-        send_command("啟動指令", conn, f"ASG{group_code:05d}/{product}GAPC02.SPCSO1", True)
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "啟動指令",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GAPC02.SPCSO1",
+                    True,
+                ),
+            )
+        )
+
+        # 送出指令
+        random.shuffle(threads)
+        [thread.start() for thread in threads]
+        [thread.join() for thread in threads]
 
         # 確認合格交易者有收到指令
         command_received_reference = f"ASG{group_code:05d}/{product}GGIO03.Ind1.stVal"
@@ -318,24 +377,79 @@ def deactivate(group_code=90001, product="SUP"):  # SPI or SUP
     - True: 結束指令
     """
     with ied_connect() as conn:
+        threads = []
+
         # AO: 結束指令發出時間
         command_submit_time = int(time.time())
-        high, low = split_timestamp(command_submit_time)
-        send_command(
-            "結束指令發出時間(Unix Timestamp-H)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO04.AnOut1",
-            high,
+        submit_timestamp_high, submit_timestamp_low = split_timestamp(
+            command_submit_time
         )
-        send_command(
-            "結束指令發出時間(Unix Timestamp-L)",
-            conn,
-            f"ASG{group_code:05d}/{product}GGIO04.AnOut2",
-            low,
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "結束指令發出時間(Unix Timestamp-H)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO04.AnOut1",
+                    submit_timestamp_high,
+                ),
+            )
+        )
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "結束指令發出時間(Unix Timestamp-L)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO04.AnOut2",
+                    submit_timestamp_low,
+                ),
+            )
+        )
+
+        # AO: 指令服務結束時間
+        end_execute_time = command_submit_time  # 馬上結束
+        end_timestamp_high, end_timestamp_low = split_timestamp(end_execute_time)
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令服務結束時間(Unix Timestamp-H)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO05.AnOut1",
+                    end_timestamp_high,
+                ),
+            )
+        )
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "指令服務結束時間(Unix Timestamp-L)",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GGIO05.AnOut2",
+                    end_timestamp_low,
+                ),
+            )
         )
 
         # DO: 結束指令
-        send_command("啟動指令", conn, f"ASG{group_code:05d}/{product}GAPC03.SPCSO1", True)
+        threads.append(
+            threading.Thread(
+                target=send_command,
+                args=(
+                    "結束指令",
+                    conn,
+                    f"ASG{group_code:05d}/{product}GAPC03.SPCSO1",
+                    True,
+                ),
+            )
+        )
+
+        # 送出指令
+        random.shuffle(threads)
+        [thread.start() for thread in threads]
+        [thread.join() for thread in threads]
 
         # 確認合格交易者有收到指令
         command_received_reference = f"ASG{group_code:05d}/{product}GGIO04.Ind1.stVal"
