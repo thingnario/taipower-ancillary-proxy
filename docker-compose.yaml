@@ -36,6 +36,10 @@ services:
         labels: "dummy-client"
     cap_add:
       - SYS_PTRACE
+  connection_test:
+    build:
+      dockerfile: bin/Dockerfile
+      context: .
 volumes:
   config:
 networks:
