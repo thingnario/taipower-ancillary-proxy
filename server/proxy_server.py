@@ -77,6 +77,15 @@ class ProxyServer():
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
     def handle_control_cmd(self, action, parameter, mms_value, test):
+        # FIXME: the control handler is blocking (process one control command at a time)
+        #
+        # Since we use gRPC to communicate with the ancillary backend server,
+        # the processing time may be too long for some control commands.
+        #
+        # For example, when 啟動指令 is sent, 執行容量 and other related commands will be sent at the same time.
+        #
+        # Possible solutions:
+        # - Update the code to use ControlHandlerForPython
         do_path = parameter
         print(f'Handle control command for DO: {do_path}')
         try:
