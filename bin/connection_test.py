@@ -146,6 +146,116 @@ def report_group_event(
             time.sleep(10)
 
 
+def handle_report_group(dataset_directory, report):
+    rcb_reference = iec61850.ClientReport_getRcbReference(report)
+    report_id = iec61850.ClientReport_getRptId(report)
+    generated_time = datetime.datetime.fromtimestamp(
+        iec61850.ClientReport_getTimestamp(report) / 1000
+    )
+    print(f"Report Control Block: {rcb_reference}")
+    print(f"Report ID: {report_id}")
+    print(f"Report Generation Time: {generated_time}")
+
+    dataset_values = iec61850.ClientReport_getDataSetValues(report)
+
+    def read_dataset_entry(i):
+        # reason for why this entry is included in the report
+        reason_code = iec61850.ClientReport_getReasonForInclusion(report, i)
+        reason = {
+            iec61850.IEC61850_REASON_DATA_CHANGE: "data change",
+            iec61850.IEC61850_REASON_QUALITY_CHANGE: "quality change",
+            iec61850.IEC61850_REASON_DATA_UPDATE: "data update",
+            iec61850.IEC61850_REASON_INTEGRITY: "integrity",
+            iec61850.IEC61850_REASON_GI: "general interrogation",
+        }.get(reason_code, "unknown")
+
+        # data reference
+        entry = iec61850.LinkedList_get(dataset_directory, i)
+        reference = iec61850.toCharP(entry.data)
+        ln_do_da = reference.split("/")[-1]
+
+        # value
+        mms_value = iec61850.MmsValue_getElement(dataset_values, i)
+        value = {"GROMMTR01.SupWh.actVal[ST]": iec61850.MmsValue_toInt64,}.get(
+            ln_do_da, iec61850.MmsValue_toInt32
+        )(mms_value)
+
+        # note
+        note = {
+            "QSEGGIO01.IntIn1.stVal[ST]": "合格交易者代碼",
+            "QSEGGIO01.IntIn2.stVal[ST]": "報價代碼",
+            "QSEGGIO01.IntIn3.stVal[ST]": "輔助服務商品",
+            "GROMMXU01.TotW.mag.i[MX]": "該報價代碼所聚合交易資源之該分鐘加總實功率。。當為用電情形時，此欄位為負值；執行逆送時，此欄位為正值。",
+            "GROGGIO01.AnIn1.mag.i[MX]": "Unix Timestamp-H",
+            "GROGGIO01.AnIn2.mag.i[MX]": "Unix Timestamp-L",
+            # "GROMMXU02.TotW.mag.i[MX]": "即時備轉、補充備轉，此欄位為 0",
+            # "GROGGIO02.AnIn1.mag.i[MX]": "Unix Timestamp-H",
+            # "GROMMTR01.SupWh.actVal[ST]": "交易資源為未獲同意可執行逆送之需量反應提供者，此欄位為 0",
+            "GROMMTR01.DmdWh.actVal[ST]": "報價代碼聚合之所有交易資源加總之累計用電量",
+            "GROGGIO11.AnIn1.mag.i[MX]": "執行率計算時間點 Unix Timestamp-H",
+            "GROGGIO11.AnIn2.mag.i[MX]": "執行率計算時間點 Unix Timestamp-L",
+            "GROGGIO11.AnIn3.mag.i[MX]": "執行率。若輔助服務商品為即時備轉或補充備轉者，當不處於調度事件執行期間，此欄位填入 0 為代表",
+        }.get(ln_do_da, "不重要")
+
+        return reference, {"value": value, "reason": reason, "note": note}
+
+    result = {
+        reference: data
+        for reference, data in [
+            read_dataset_entry(i)
+            for i in range(iec61850.LinkedList_size(dataset_directory))
+        ]
+    }
+
+    # Print values of the report
+    for reference, data in result.items():
+        if reference.endswith("AnIn2.mag.i[MX]"):
+            value = (
+                arrow.get(data["value"]).to("Asia/Taipei").format("YYYY-MM-DD HH:mm:ss")
+            )
+        else:
+            value = data["value"]
+        print(f"{reference}: {value} ({data['reason']}), {data['note']}")
+
+
+def report_group(group_code=90001, host="localhost", port=102):
+    rcb_reference = f"ASG{group_code:05d}/LLN0.RP.urcb01"
+    dataset_reference = f"ASG{group_code:05d}/LLN0.AIGRO"
+    with ied_connect(host, port) as conn:
+        # get RCB object from server
+        rcb, _ = iec61850.IedConnection_getRCBValues(conn, rcb_reference, None)
+
+        # install the report handler
+        dataset_directory, _ = iec61850.IedConnection_getDataSetDirectory(
+            conn, dataset_reference, None
+        )
+        context = iec61850.transformReportHandlerContext(
+            (None, handle_report_group, dataset_directory, rcb_reference)
+        )
+        iec61850.IedConnection_installReportHandler(
+            conn,
+            rcb_reference,
+            iec61850.ClientReportControlBlock_getRptId(rcb),
+            iec61850.ReportHandlerProxy,
+            context,
+        )
+
+        # enable the report
+        iec61850.ClientReportControlBlock_setRptEna(rcb, True)
+        iec61850.ClientReportControlBlock_setGI(rcb, True)
+        iec61850.IedConnection_setRCBValues(
+            conn,
+            rcb,
+            iec61850.RCB_ELEMENT_RPT_ENA
+            | iec61850.RCB_ELEMENT_GI,  # parameter mast define which parameter to set
+            True,
+        )
+
+        # wait for reports
+        while True:
+            time.sleep(10)
+
+
 def handle_report_resource(dataset_directory, report):
     print(
         "Report Control Block: {}".format(iec61850.ClientReport_getRcbReference(report))
@@ -591,6 +701,7 @@ if __name__ == "__main__":
     fire.Fire(
         {
             "report_group_event": report_group_event,  # 報價代碼事件回報，例如履行待命服務開始、結束
+            "report_group": report_group,  # 報價代碼狀態回報，總輸出功率
             "report_resource": report_resource,  # 交易資源狀態回報，例如輸出功率
             "activate": activate,  # 即時備轉啟動指令
             "deactivate": deactivate,  # 即時備轉結束指令
