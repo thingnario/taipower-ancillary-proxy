@@ -2,6 +2,7 @@ import arrow
 import contextlib
 import datetime
 import random
+import re
 import threading
 import time
 
@@ -33,6 +34,116 @@ def combine_timestamp(high, low):
     high = high << 32
     timestamp_64 = high | low
     return timestamp_64
+
+
+def handle_report_group_event(dataset_directory, report):
+    rcb_reference = iec61850.ClientReport_getRcbReference(
+        report
+    )  # ASG90001/LLN0.RP.diurcb04
+    report_id = iec61850.ClientReport_getRptId(report)
+    generated_time = datetime.datetime.fromtimestamp(
+        iec61850.ClientReport_getTimestamp(report) / 1000
+    )
+    print(f"Report Control Block: {rcb_reference}")
+    print(f"Report ID: {report_id}")
+    print(f"Report Generation Time: {generated_time}")
+
+    match = re.search(
+        r"ASG(?P<group_code>\d+)/LLN0\.RP\.(?P<report_name>.+)", rcb_reference
+    )
+    group_code = int(match.group("group_code"))
+    report_name = match.group("report_name")
+    product = {
+        "diurcb03": "SPI",
+        "diurcb04": "SUP",
+    }.get(report_name, "Unknown")
+
+    dataset_values = iec61850.ClientReport_getDataSetValues(report)
+
+    def read_dataset_entry(i):
+        # reason for why this entry is included in the report
+        reason_code = iec61850.ClientReport_getReasonForInclusion(report, i)
+        reason = {
+            iec61850.IEC61850_REASON_DATA_CHANGE: "data change",
+            iec61850.IEC61850_REASON_QUALITY_CHANGE: "quality change",
+            iec61850.IEC61850_REASON_DATA_UPDATE: "data update",
+            iec61850.IEC61850_REASON_INTEGRITY: "integrity",
+            iec61850.IEC61850_REASON_GI: "general interrogation",
+        }.get(reason_code, "unknown")
+
+        # data reference
+        entry = iec61850.LinkedList_get(dataset_directory, i)
+        reference = iec61850.toCharP(entry.data)
+
+        # value
+        mms_value = iec61850.MmsValue_getElement(dataset_values, i)
+        value = iec61850.MmsValue_getBoolean(mms_value)
+
+        # note
+        note = {
+            f"ASG{group_code:05d}/{product}GGIO01.Ind1.stVal[ST]": "履行待命服務開始",
+            f"ASG{group_code:05d}/{product}GGIO02.Ind1.stVal[ST]": "履行待命服務結束",
+            f"ASG{group_code:05d}/{product}GGIO03.Ind1.stVal[ST]": "回報接獲執行指令",
+            f"ASG{group_code:05d}/{product}GGIO04.Ind1.stVal[ST]": "回報接獲結束指令",
+            f"ASG{group_code:05d}/{product}GGIO05.Ind1.stVal[ST]": "回報執行結束",
+        }[reference]
+
+        return reference, {"value": value, "reason": reason, "note": note}
+
+    result = {
+        reference: data
+        for reference, data in [
+            read_dataset_entry(i)
+            for i in range(iec61850.LinkedList_size(dataset_directory))
+        ]
+    }
+
+    # Print values of the report
+    for reference, data in result.items():
+        print(f"{data['note']} {reference}: {data['value']} due to {data['reason']}")
+
+
+def report_group_event(
+    group_code=90001, product="SUP", host="localhost", port=102
+):  # SPI or SUP
+    rcb_reference = {
+        "SPI": f"ASG{group_code:05d}/LLN0.RP.diurcb03",
+        "SUP": f"ASG{group_code:05d}/LLN0.RP.diurcb04",
+    }[product]
+    dataset_reference = f"ASG{group_code:05d}/LLN0.DI{product}"
+    with ied_connect(host, port) as conn:
+        # get RCB object from server
+        rcb, _ = iec61850.IedConnection_getRCBValues(conn, rcb_reference, None)
+
+        # install the report handler
+        dataset_directory, _ = iec61850.IedConnection_getDataSetDirectory(
+            conn, dataset_reference, None
+        )
+        context = iec61850.transformReportHandlerContext(
+            (None, handle_report_group_event, dataset_directory, rcb_reference)
+        )
+        iec61850.IedConnection_installReportHandler(
+            conn,
+            rcb_reference,
+            iec61850.ClientReportControlBlock_getRptId(rcb),
+            iec61850.ReportHandlerProxy,
+            context,
+        )
+
+        # enable the report
+        iec61850.ClientReportControlBlock_setRptEna(rcb, True)
+        iec61850.ClientReportControlBlock_setGI(rcb, True)
+        iec61850.IedConnection_setRCBValues(
+            conn,
+            rcb,
+            iec61850.RCB_ELEMENT_RPT_ENA
+            | iec61850.RCB_ELEMENT_GI,  # parameter mast define which parameter to set
+            True,
+        )
+
+        # wait for reports
+        while True:
+            time.sleep(10)
 
 
 def handle_report_resource(dataset_directory, report):
@@ -479,6 +590,7 @@ def deactivate(
 if __name__ == "__main__":
     fire.Fire(
         {
+            "report_group_event": report_group_event,  # 報價代碼事件回報，例如履行待命服務開始、結束
             "report_resource": report_resource,  # 交易資源狀態回報，例如輸出功率
             "activate": activate,  # 即時備轉啟動指令
             "deactivate": deactivate,  # 即時備轉結束指令
