@@ -35,7 +35,7 @@ def combine_timestamp(high, low):
     return timestamp_64
 
 
-def handle_report(dataset_directory, report):
+def handle_report_resource(dataset_directory, report):
     print(
         "Report Control Block: {}".format(iec61850.ClientReport_getRcbReference(report))
     )
@@ -117,7 +117,9 @@ def handle_report(dataset_directory, report):
     )
 
 
-def report(resource_code=1, product="SUP", host="localhost", port=102):  # SPI or SUP
+def report_resource(
+    resource_code=1, product="SUP", host="localhost", port=102
+):  # SPI or SUP
     rcb_reference = {
         "SPI": f"ASR{resource_code:05d}/LLN0.RP.urcb04",
         "SUP": f"ASR{resource_code:05d}/LLN0.RP.urcb05",
@@ -136,7 +138,7 @@ def report(resource_code=1, product="SUP", host="localhost", port=102):  # SPI o
             conn, dataset_reference, None
         )
         context = iec61850.transformReportHandlerContext(
-            (None, handle_report, dataset_directory, rcb_reference)
+            (None, handle_report_resource, dataset_directory, rcb_reference)
         )
         iec61850.IedConnection_installReportHandler(
             conn,
@@ -477,7 +479,7 @@ def deactivate(
 if __name__ == "__main__":
     fire.Fire(
         {
-            "report": report,
+            "report_resource": report_resource,  # 交易資源狀態回報，例如輸出功率
             "activate": activate,  # 即時備轉啟動指令
             "deactivate": deactivate,  # 即時備轉結束指令
             "notify": notify,  # 電量不足／SOC 準備量不足／機組剩餘可用量不足
