@@ -432,7 +432,7 @@ def notify(group_code=90001, product="SUP", host="localhost", port=102):  # SPI 
 
 def activate(
     group_code=90001,
-    capacity=1,  # 單位為 0.01MW。乘上 100 倍後發送指令。
+    capacity=1,  # 單位為 MW。乘上 100 倍後發送指令。
     product="SUP",  # SPI or SUP
     host="localhost",
     port=102,
@@ -540,7 +540,7 @@ def activate(
             )
         )
 
-        # AO: 指令執行容量。單位為 0.01MW。乘上 100 倍後發送指令。
+        # AO: 指令執行容量
         threads.append(
             threading.Thread(
                 target=send_command,
@@ -548,7 +548,7 @@ def activate(
                     "指令執行容量",
                     conn,
                     f"ASG{group_code:05d}/{product}GGIO03.AnOut1",
-                    capacity,
+                    capacity * 100,  # 單位為 0.01MW。所以乘上 100 倍後發送指令。
                 ),
             )
         )
