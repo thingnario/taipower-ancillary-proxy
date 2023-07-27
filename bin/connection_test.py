@@ -54,8 +54,8 @@ def handle_report_group_event(dataset_directory, report):
     group_code = int(match.group("group_code"))
     report_name = match.group("report_name")
     product = {
-        "diurcb03": "SPI",
-        "diurcb04": "SUP",
+        "diurcb0301": "SPI",
+        "diurcb0401": "SUP",
     }.get(report_name, "Unknown")
 
     dataset_values = iec61850.ClientReport_getDataSetValues(report)
