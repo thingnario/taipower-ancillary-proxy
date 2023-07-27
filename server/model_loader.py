@@ -134,10 +134,16 @@ def load_report(report, ln):
     report_options = [REPORT_OPTIONS[opt] for opt in report.get('report_options', [])]
     trigger_options = [TRIGGER_OPTIONS[opt] for opt in report.get('trigger_options', [])]
 
+    if report['indexed']:
+        name = report['name'] + "01"
+        report_id = report['report_id'] + "01"
+    else:
+        name = report['name']
+        report_id = report['report_id']
     iec61850.ReportControlBlock_create(
-        report['name'],
+        name,
         ln['inst'],
-        report['report_id'],
+        report_id,
         report['buffered'],
         report['data_set'],
         report['configuration_revision'],

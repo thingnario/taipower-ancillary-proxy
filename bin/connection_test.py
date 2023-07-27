@@ -107,8 +107,8 @@ def report_group_event(
     group_code=90001, product="SUP", host="localhost", port=102
 ):  # SPI or SUP
     rcb_reference = {
-        "SPI": f"ASG{group_code:05d}/LLN0.RP.diurcb03",
-        "SUP": f"ASG{group_code:05d}/LLN0.RP.diurcb04",
+        "SPI": f"ASG{group_code:05d}/LLN0.RP.diurcb0301",
+        "SUP": f"ASG{group_code:05d}/LLN0.RP.diurcb0401",
     }[product]
     dataset_reference = f"ASG{group_code:05d}/LLN0.DI{product}"
     with ied_connect(host, port) as conn:
@@ -219,7 +219,7 @@ def handle_report_group(dataset_directory, report):
 
 
 def report_group(group_code=90001, host="localhost", port=102):
-    rcb_reference = f"ASG{group_code:05d}/LLN0.RP.urcb01"
+    rcb_reference = f"ASG{group_code:05d}/LLN0.RP.urcb0101"
     dataset_reference = f"ASG{group_code:05d}/LLN0.AIGRO"
     with ied_connect(host, port) as conn:
         # get RCB object from server
@@ -342,8 +342,8 @@ def report_resource(
     resource_code=1, product="SUP", host="localhost", port=102
 ):  # SPI or SUP
     rcb_reference = {
-        "SPI": f"ASR{resource_code:05d}/LLN0.RP.urcb04",
-        "SUP": f"ASR{resource_code:05d}/LLN0.RP.urcb05",
+        "SPI": f"ASR{resource_code:05d}/LLN0.RP.urcb0401",
+        "SUP": f"ASR{resource_code:05d}/LLN0.RP.urcb0501",
     }[product]
     dataset_reference = {
         "SPI": f"ASR{resource_code:05d}/LLN0.AISPI",
