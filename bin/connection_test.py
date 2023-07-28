@@ -462,20 +462,7 @@ def activate(
 
         # AO: 啟動指令發出時間
         command_submit_time = int(time.time())
-        submit_timestamp_high, submit_timestamp_low = split_timestamp(
-            command_submit_time
-        )
-        threads.append(
-            threading.Thread(
-                target=send_command,
-                args=(
-                    "啟動指令發出時間(Unix Timestamp-H)",
-                    conn,
-                    f"ASG{group_code:05d}/{product}GGIO01.AnOut1",
-                    submit_timestamp_high,
-                ),
-            )
-        )
+        _, submit_timestamp_low = split_timestamp(command_submit_time)
         threads.append(
             threading.Thread(
                 target=send_command,
@@ -490,18 +477,7 @@ def activate(
 
         # AO: 指令服務開始時間
         start_execute_time = command_submit_time // 3600 * 3600 + 3600  # 下個整點
-        start_timestamp_high, start_timestamp_low = split_timestamp(start_execute_time)
-        threads.append(
-            threading.Thread(
-                target=send_command,
-                args=(
-                    "指令服務開始時間(Unix Timestamp-H)",
-                    conn,
-                    f"ASG{group_code:05d}/{product}GGIO02.AnOut1",
-                    start_timestamp_high,
-                ),
-            )
-        )
+        _, start_timestamp_low = split_timestamp(start_execute_time)
         threads.append(
             threading.Thread(
                 target=send_command,
@@ -516,18 +492,7 @@ def activate(
 
         # AO: 指令服務結束時間
         end_execute_time = start_execute_time + 3600  # 執行一小時
-        end_timestamp_high, end_timestamp_low = split_timestamp(end_execute_time)
-        threads.append(
-            threading.Thread(
-                target=send_command,
-                args=(
-                    "指令服務結束時間(Unix Timestamp-H)",
-                    conn,
-                    f"ASG{group_code:05d}/{product}GGIO05.AnOut1",
-                    end_timestamp_high,
-                ),
-            )
-        )
+        _, end_timestamp_low = split_timestamp(end_execute_time)
         threads.append(
             threading.Thread(
                 target=send_command,
@@ -608,20 +573,7 @@ def deactivate(
 
         # AO: 結束指令發出時間
         command_submit_time = int(time.time())
-        submit_timestamp_high, submit_timestamp_low = split_timestamp(
-            command_submit_time
-        )
-        threads.append(
-            threading.Thread(
-                target=send_command,
-                args=(
-                    "結束指令發出時間(Unix Timestamp-H)",
-                    conn,
-                    f"ASG{group_code:05d}/{product}GGIO04.AnOut1",
-                    submit_timestamp_high,
-                ),
-            )
-        )
+        _, submit_timestamp_low = split_timestamp(command_submit_time)
         threads.append(
             threading.Thread(
                 target=send_command,
@@ -636,18 +588,7 @@ def deactivate(
 
         # AO: 指令服務結束時間
         end_execute_time = command_submit_time  # 馬上結束
-        end_timestamp_high, end_timestamp_low = split_timestamp(end_execute_time)
-        threads.append(
-            threading.Thread(
-                target=send_command,
-                args=(
-                    "指令服務結束時間(Unix Timestamp-H)",
-                    conn,
-                    f"ASG{group_code:05d}/{product}GGIO05.AnOut1",
-                    end_timestamp_high,
-                ),
-            )
-        )
+        _, end_timestamp_low = split_timestamp(end_execute_time)
         threads.append(
             threading.Thread(
                 target=send_command,
