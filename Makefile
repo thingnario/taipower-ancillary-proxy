@@ -38,10 +38,12 @@ install/libiec61850:
 	@cp libiec61850/pyiec61850/_iec61850.so server/
 	@cp libiec61850/pyiec61850/iec61850.py client/
 	@cp libiec61850/pyiec61850/_iec61850.so client/
+	@cp libiec61850/pyiec61850/iec61850.py bin/
+	@cp libiec61850/pyiec61850/_iec61850.so bin/
 
 install/config:
 	@mkdir -p server/config
 	@cp config/points.json server/config/
 
-run/server: install/config install/libiec61850 build/grpc
+run/server: install/libiec61850 build/grpc
 	@cd server && python proxy_server.py
