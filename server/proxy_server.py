@@ -31,6 +31,36 @@ def read_mms_value(mms_value):
         return None
 
 
+class ControlHandler(iec61850.ControlHandlerForPython):
+    def __init__(self, rcb_reference, backend_stub: taipower_ancillary_pb2_grpc.AncillaryInputsStub):
+        super().__init__()
+        self.rcb_reference = rcb_reference
+        self.backend_stub = backend_stub
+
+    def get_event_details(self):
+        try:
+            # FIXME: type of orIdentSize should be int*, so 1024 is not correct
+            # print(f'Originator Identifier: {iec61850.ControlAction_getOrIdent(action, 1024)}')
+            print(f'Originator Category: {iec61850.ControlAction_getOrCat(self._libiec61850_control_action)}')
+            print(f'Control Number: {iec61850.ControlAction_getCtlNum(self._libiec61850_control_action)}')
+            print(f'Control Time: {iec61850.ControlAction_getControlTime(self._libiec61850_control_action)}')
+        except Exception as e:
+            print(f'Exception: {e}')
+
+    def trigger(self):
+        print(f'Handle control command: {self.rcb_reference}')
+        # self.get_event_details()
+        value = read_mms_value(self._libiec61850_mms_value)
+        print(f'Update {self.rcb_reference} to {value}')
+        try:
+            self.backend_stub.update_point_values(
+                taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({self.rcb_reference: value})))
+            print(f'Handled control command: {self.rcb_reference}')
+        except Exception as e:
+            print(f'Exception: {e}')
+
+
+
 class ProxyServer():
     def __init__(self, config_path, ancillary_backend_server_address):
         self._running = False
@@ -69,58 +99,35 @@ class ProxyServer():
     def _init_grpc_server(self):
         print('Start gRPC server at port {}'.format(self._grpc_port))
         self._outward_grpc_channel = grpc.insecure_channel(self._ancillary_backend_server_address)
-        self._outward_stub = taipower_ancillary_pb2_grpc.AncillaryOutputsStub(self._outward_grpc_channel)
 
         self._grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         taipower_ancillary_pb2_grpc.add_AncillaryInputsServicer_to_server(
             AncillaryInputsServicer(self), self._grpc_server)
         self._grpc_server.add_insecure_port('[::]:{}'.format(self._grpc_port))
 
-    def handle_control_cmd(self, action, parameter, mms_value, test):
-        # FIXME: the control handler is blocking (process one control command at a time)
-        #
-        # Since we use gRPC to communicate with the ancillary backend server,
-        # the processing time may be too long for some control commands.
-        #
-        # For example, when 啟動指令 is sent, 執行容量 and other related commands will be sent at the same time.
-        #
-        # Possible solutions:
-        # - Update the code to use ControlHandlerForPython
-        reference = parameter
-        print(f'Handle control command: {reference}')
-        try:
-            # FIXME: type of orIdentSize should be int*, so 1024 is not correct
-            # print(f'Originator Identifier: {iec61850.ControlAction_getOrIdent(action, 1024)}')
-            print(f'Originator Category: {iec61850.ControlAction_getOrCat(action)}')
-            print(f'Control Number: {iec61850.ControlAction_getCtlNum(action)}')
-            print(f'Control Time: {iec61850.ControlAction_getControlTime(action)}')
-        except Exception as e:
-            print(f'Exception: {e}')
-
-        value = read_mms_value(mms_value)
-        print(f'Update {reference} to {value}')
-        try:
-            response = self._outward_stub.update_point_values(
-                taipower_ancillary_pb2.UpdatePointValuesRequest(values=json.dumps({reference: value})))
-            print(f'Handled control command: {reference}')
-            return response
-        except Exception as e:
-            print(f'Exception: {e}')
-            return None
-
-
     def _bind_controll_handler(self):
         print('Bind control handler')
+        self.backend_grpc_channel = grpc.insecure_channel(self._ancillary_backend_server_address)
+        backend_stub = taipower_ancillary_pb2_grpc.AncillaryOutputsStub(self.backend_grpc_channel)
+        self._handlers = {}
+        self._subscribers = {}
         for do_info in get_data_objects(self._model):
             if not do_info['controllable']:
                 continue
+            ref = do_info['path']
+            handler = ControlHandler(ref, backend_stub)
+            handler.thisown = 0
 
-            context = iec61850.transformControlHandlerContext((self, self.handle_control_cmd, do_info['path']))
-            if not context:
-                break
+            subscriber = iec61850.ControlSubscriberForPython()
+            subscriber.setIedServer(self._ied_server)
+            subscriber.setControlObject(do_info['inst'])
+            subscriber.setControlHandler(handler)
 
-            iec61850.IedServer_setControlHandler(
-                self._ied_server, do_info['inst'], iec61850.ControlHandlerProxy, context)
+            subscribed = subscriber.subscribe()
+            print(f'Subscribe {ref}: {subscribed}')
+
+            self._handlers[ref] = handler
+            self._subscribers[ref] = subscriber
 
     def start(self):
         print('Initialize proxy server')

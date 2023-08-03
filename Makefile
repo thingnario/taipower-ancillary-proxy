@@ -34,7 +34,7 @@ PYTHON_INCLUDE := $(shell python -c "import sysconfig;print(sysconfig.get_path('
 PYTHON_LIBDIR := $(shell python -c "import sysconfig;print(sysconfig.get_config_var('LIBDIR'))")
 PYTHON_INSTSONAME := $(shell python -c "import sysconfig;print(sysconfig.get_config_var('INSTSONAME'))")
 
-build/libiec61850: patch/libiec61850 $(IEC61850_GENERATED_FILES)
+build/libiec61850: $(IEC61850_GENERATED_FILES)
 $(IEC61850_GENERATED_FILES):
 	@cd libiec61850 && cmake . \
 		-DBUILD_PYTHON_BINDINGS=ON \
