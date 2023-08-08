@@ -11,6 +11,84 @@ import fire
 import iec61850
 
 
+class RCBHandlerBase(iec61850.RCBHandler):
+    def print_rcb_info(self):
+        '''Method for triggering the handler and processing the last received RCB.
+           In these example, we only print some attributs and data of the RCB'''
+
+        # the following section is the application part of the Swig C subthread:
+        # we must catch the Python exceptions, otherwise it will crash.
+        # try:
+        l_rcb_ref = iec61850.ClientReport_getRcbReference(self._client_report)
+        print(f"\nNew received RCB: {l_rcb_ref}")
+
+        if iec61850.ClientReport_hasDataSetName(self._client_report):
+            dataset_name = iec61850.ClientReport_getDataSetName(self._client_report)
+            print(f"\tDataSet name: {dataset_name}")
+
+            # dataset = iec61850.IedModel_lookupDataSet(dataset_name)
+
+        print(f"\tReport id: {iec61850.ClientReport_getRptId(self._client_report)}")
+
+        if iec61850.ClientReport_hasSeqNum(self._client_report):
+            l_seq_num = iec61850.ClientReport_getSeqNum(self._client_report)
+            print(f"\tSequence num: {l_seq_num}")
+
+        if iec61850.ClientReport_hasSubSeqNum(self._client_report):
+            l_sub_seq_num = iec61850.ClientReport_getSubSeqNum(self._client_report)
+            print(f"\tSub-sequence num: {l_sub_seq_num}")
+
+        if iec61850.ClientReport_hasTimestamp(self._client_report):
+            l_timestamp_millisec =iec61850.ClientReport_getTimestamp(self._client_report)
+            print(f"\tTimestamp in millsec: {l_timestamp_millisec}")
+
+    def trigger(self):
+        print("Triggering RCBHandlerBase")
+        self.print_rcb_info()
+        mms_value_array = iec61850.ClientReport_getDataSetValues(self._client_report)
+        mms_value_array_size = iec61850.MmsValue_getArraySize(mms_value_array)
+        print(f"\tDataSet size: {mms_value_array_size}")
+
+        for mms_value_index in range(mms_value_array_size):
+            reference = iec61850.ClientReport_getDataReference(self._client_report, mms_value_index)
+
+            mms_value = iec61850.MmsValue_getElement(mms_value_array, mms_value_index)
+            mms_value_type = iec61850.MmsValue_getTypeString(mms_value)
+            # reference = ""
+            if mms_value_type == "boolean":
+                print(f"\t{reference}: {iec61850.MmsValue_getBoolean(mms_value)}")
+            elif mms_value_type == "float":
+                print(f"\t{reference}: {iec61850.MmsValue_toFloat(mms_value)}")
+            else:
+                print("\t{reference}: other type")
+
+            reason = iec61850.ClientReport_getReasonForInclusion(self._client_report,
+                                                                    mms_value_index)
+            reason_str = iec61850.ReasonForInclusion_getValueAsString(reason)
+            print(f"\tReason for inclusion: {reason_str}")
+
+
+def subscribe(connection, rcb_reference, rcb_handler: iec61850.RCBHandler):
+    # get rcb_id
+    rcb_client, _ = iec61850.pyWrap_IedConnection_getRCBValues(connection,
+                                                                rcb_reference,
+                                                                None)
+    rcb_id = iec61850.ClientReportControlBlock_getRptId(rcb_client)
+
+    # create subscriber
+    subscriber = iec61850.RCBSubscriber()
+    subscriber.setIedConnection(connection)
+    subscriber.setRcbReference(rcb_reference)
+    subscriber.setRcbRptId(rcb_id)
+
+    # connect the handler to the subscriber
+    rcb_handler.thisown = 0  # the following subscriber will be the owner of this handler
+    subscriber.setEventHandler(rcb_handler)
+
+    # start the subscriber
+    subscriber.subscribe()
+    return subscriber, rcb_client
+
 @contextlib.contextmanager
 def ied_connect(host, port):
     conn = iec61850.IedConnection_create()
@@ -110,32 +188,17 @@ def report_group_event(
         "SPI": f"ASG{group_code:05d}/LLN0.RP.diurcb0301",
         "SUP": f"ASG{group_code:05d}/LLN0.RP.diurcb0401",
     }[product]
-    dataset_reference = f"ASG{group_code:05d}/LLN0.DI{product}"
-    with ied_connect(host, port) as conn:
-        # get RCB object from server
-        rcb, _ = iec61850.IedConnection_getRCBValues(conn, rcb_reference, None)
 
-        # install the report handler
-        dataset_directory, _ = iec61850.IedConnection_getDataSetDirectory(
-            conn, dataset_reference, None
-        )
-        context = iec61850.transformReportHandlerContext(
-            (None, handle_report_group_event, dataset_directory, rcb_reference)
-        )
-        iec61850.IedConnection_installReportHandler(
-            conn,
-            rcb_reference,
-            iec61850.ClientReportControlBlock_getRptId(rcb),
-            iec61850.ReportHandlerProxy,
-            context,
-        )
+    rcb_handler = RCBHandlerBase()
+    with ied_connect(host, port) as conn:
+        _, rcb_client = subscribe(conn, rcb_reference, rcb_handler)
 
         # enable the report
-        iec61850.ClientReportControlBlock_setRptEna(rcb, True)
-        iec61850.ClientReportControlBlock_setGI(rcb, True)
+        iec61850.ClientReportControlBlock_setRptEna(rcb_client, True)
+        iec61850.ClientReportControlBlock_setGI(rcb_client, True)
         iec61850.IedConnection_setRCBValues(
             conn,
-            rcb,
+            rcb_client,
             iec61850.RCB_ELEMENT_RPT_ENA
             | iec61850.RCB_ELEMENT_GI,  # parameter mast define which parameter to set
             True,

@@ -32,7 +32,7 @@ EXTRA_OPTIONS = {
     'ISC': ['controlOptions', 'hasTransientIndicator'],
     'MV': ['isIntegerNotFloat'],
     'CMV': ['isIntegerNotFloat'],
-    'WYE': ['isIntegerNotFloat'],
+    # 'WYE': ['isIntegerNotFloat'],
     'DEL': ['isIntegerNotFloat'],
     'SAV': ['isIntegerNotFloat'],
     'SPC': ['controlOptions'],
